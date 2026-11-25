@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AppDataProvider, useAppData } from './context/AppDataContext';
-import { TimerProvider, useTimer } from './context/TimerContext';
+import { TimerProvider, useTimerActions } from './context/TimerContext';
 import { Header, type ActiveTab } from './components/layout/Header';
 import { MobileNav } from './components/layout/MobileNav';
 import { UndoToast } from './components/layout/UndoToast';
@@ -14,25 +14,28 @@ import {
   playCompletionChime,
   setAmbientNoise,
   stopAmbientNoise,
+  unlockAudioContext,
 } from './utils/audioEngine';
 import { toLocalDateKey } from './utils/date';
 
 const AnalyticsView = lazy(() => import('./components/analytics/AnalyticsView'));
 
-function isEditableElement(target: EventTarget | null): boolean {
+function isEditableOrInteractive(target: EventTarget | null, code: string): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
-  return (
-    tag === 'INPUT' ||
-    tag === 'TEXTAREA' ||
-    tag === 'SELECT' ||
-    target.isContentEditable
-  );
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
+    return true;
+  }
+  // Never hijack Space when user is activating a focused button, link, or tab
+  if (code === 'Space' && (tag === 'BUTTON' || tag === 'A' || target.getAttribute('role') === 'tab')) {
+    return true;
+  }
+  return false;
 }
 
 function AppShell() {
   const { state } = useAppData();
-  const { toggle, reset, registerPhaseCompleteListener } = useTimer();
+  const { toggle, reset, registerPhaseCompleteListener } = useTimerActions();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('focus');
   const [selectedDate, setSelectedDate] = useState<string>(() => toLocalDateKey());
@@ -45,6 +48,18 @@ function AppShell() {
   useEffect(() => {
     setAmbientNoise(state.settings.ambientNoise, state.settings.ambientVolume);
   }, [state.settings.ambientNoise, state.settings.ambientVolume]);
+
+  // If ambient noise was persisted across reload, resume suspended AudioContext on first user gesture
+  useEffect(() => {
+    if (state.settings.ambientNoise === 'off') return;
+    const unlock = () => unlockAudioContext();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, [state.settings.ambientNoise]);
 
   useEffect(() => () => stopAmbientNoise(), []);
 
@@ -79,12 +94,16 @@ function AppShell() {
     state.settings.notificationsEnabled,
   ]);
 
-  // Global keyboard shortcuts (disabled when typing in inputs or when a modal is open)
+  // Global keyboard shortcuts (suspended inside editable fields and while non-immersive modals are open)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (isEditableElement(e.target)) return;
-      if (showSettings || showShortcuts) return;
+      if (isEditableOrInteractive(e.target, e.code)) return;
+
+      const openDialogs = document.querySelectorAll('[role="dialog"]');
+      const hasNonImmersiveModal =
+        showSettings || showShortcuts || (!immersive && openDialogs.length > 0);
+      if (hasNonImmersiveModal) return;
 
       if (e.code === 'Space') {
         e.preventDefault();
@@ -95,21 +114,17 @@ function AppShell() {
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         setImmersive((prev) => !prev);
-      } else if (e.key === 'n' || e.key === 'N') {
+      } else if (!immersive && (e.key === 'n' || e.key === 'N')) {
         e.preventDefault();
-        setImmersive(false);
         setActiveTab('focus');
         window.setTimeout(() => quickInputRef.current?.focus(), 30);
-      } else if (e.key === '1') {
-        setImmersive(false);
+      } else if (!immersive && e.key === '1') {
         setActiveTab('focus');
-      } else if (e.key === '2') {
-        setImmersive(false);
+      } else if (!immersive && e.key === '2') {
         setActiveTab('goals');
-      } else if (e.key === '3') {
-        setImmersive(false);
+      } else if (!immersive && e.key === '3') {
         setActiveTab('analytics');
-      } else if (e.key === '?') {
+      } else if (!immersive && e.key === '?') {
         e.preventDefault();
         setShowShortcuts((prev) => !prev);
       }
@@ -117,7 +132,7 @@ function AppShell() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [toggle, reset, showSettings, showShortcuts]);
+  }, [toggle, reset, immersive, showSettings, showShortcuts]);
 
   const handleJumpToSchedule = (dateKey: string) => {
     setSelectedDate(dateKey);
@@ -125,7 +140,7 @@ function AppShell() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-canvas)] pb-20 text-[var(--text-primary)] md:pb-8">
+    <div className="min-h-screen overflow-x-hidden bg-[var(--bg-canvas)] pb-20 text-[var(--text-primary)] md:pb-8">
       <Header
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -134,11 +149,11 @@ function AppShell() {
       />
 
       {activeTab === 'focus' && (
-        <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-12 lg:items-start">
-          <div className="lg:col-span-5 lg:sticky lg:top-20">
+        <main className="mx-auto grid max-w-6xl gap-6 px-3.5 py-5 sm:px-6 sm:py-6 lg:grid-cols-12 lg:items-start">
+          <div className="min-w-0 lg:col-span-5 lg:sticky lg:top-20">
             <TimerCard onEnterImmersive={() => setImmersive(true)} />
           </div>
-          <div className="lg:col-span-7">
+          <div className="min-w-0 lg:col-span-7">
             <SchedulePanel
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}

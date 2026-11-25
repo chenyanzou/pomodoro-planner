@@ -240,8 +240,11 @@ export function GoalsView({ onJumpToSchedule }: GoalsViewProps) {
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           <input
                             type="date"
+                            required
                             value={spawnDate}
-                            onChange={(e) => setSpawnDate(e.target.value)}
+                            onChange={(e) => {
+                              if (e.target.value) setSpawnDate(e.target.value);
+                            }}
                             className="tabular-nums rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2 py-1"
                           />
                           <select

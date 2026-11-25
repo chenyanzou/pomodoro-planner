@@ -19,6 +19,17 @@ function getAudioContext(): AudioContext | null {
 }
 
 /**
+ * Call inside any user gesture (e.g., clicking Start) so browser autoplay policy unlocks audio
+ * for later timer completion chimes and persisted ambient noise.
+ */
+export function unlockAudioContext(): void {
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === 'suspended') {
+    ctx.resume().catch(() => {});
+  }
+}
+
+/**
  * Pure Web Audio harmonic chime (C5 -> E5 -> G5 soft bell) with zero external audio dependencies.
  */
 export function playCompletionChime(volume: number): void {

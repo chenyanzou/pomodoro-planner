@@ -1,6 +1,7 @@
-import type { AppSettings, PersistedAppState, PersistedTimerState, TimerPhase } from '../types';
+import type { AppSettings, FocusSession, Goal, PersistedAppState, PersistedTimerState, Task, TimerPhase } from '../types';
 import { createSampleAppState, DEFAULT_SETTINGS } from './seedData';
 import { createInitialTimerState, getPhaseDurationSeconds } from './timerEngine';
+import { validateGoal, validateSession, validateTask } from './validators';
 
 export { DEFAULT_SETTINGS };
 
@@ -74,9 +75,9 @@ export function loadAppState(storage?: StorageReader | null): PersistedAppState 
     return {
       schemaVersion: 1,
       hasSampleData: Boolean(parsed.hasSampleData),
-      goals: parsed.goals,
-      tasks: parsed.tasks,
-      sessions: parsed.sessions,
+      goals: parsed.goals.map(validateGoal).filter((g): g is Goal => g !== null),
+      tasks: parsed.tasks.map(validateTask).filter((t): t is Task => t !== null),
+      sessions: parsed.sessions.map(validateSession).filter((s): s is FocusSession => s !== null),
       settings: sanitizeSettings(parsed.settings),
     };
   } catch {

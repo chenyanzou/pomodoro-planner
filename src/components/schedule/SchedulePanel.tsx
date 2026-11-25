@@ -8,7 +8,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAppData } from '../../context/AppDataContext';
-import { useTimer } from '../../context/TimerContext';
+import { useTimerActions } from '../../context/TimerContext';
 import type { Priority, Task, TimeSlot } from '../../types';
 import {
   addDays,
@@ -16,6 +16,7 @@ import {
   formatRelativeDayLabel,
   toLocalDateKey,
 } from '../../utils/date';
+import { computeDragReorder, computeSlotMove } from '../../utils/reorder';
 import { TaskItem } from './TaskItem';
 import { TaskModal } from './TaskModal';
 
@@ -49,7 +50,7 @@ export function SchedulePanel({
     rolloverUnfinishedTasks,
     clearSampleData,
   } = useAppData();
-  const { timerState, bindTask } = useTimer();
+  const { activeTaskId, bindTask } = useTimerActions();
 
   const todayKey = toLocalDateKey();
   const [title, setTitle] = useState('');
@@ -118,30 +119,18 @@ export function SchedulePanel({
   };
 
   const handleMove = (taskId: string, direction: 'up' | 'down') => {
-    const ids = dayTasks.map((t) => t.id);
-    const idx = ids.indexOf(taskId);
-    if (idx === -1) return;
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (swapIdx < 0 || swapIdx >= ids.length) return;
-    const nextIds = [...ids];
-    [nextIds[idx], nextIds[swapIdx]] = [nextIds[swapIdx], nextIds[idx]];
-    reorderTasks(selectedDate, nextIds);
+    const nextIds = computeSlotMove(dayTasks, taskId, direction);
+    if (nextIds) {
+      reorderTasks(selectedDate, nextIds);
+    }
   };
 
   const handleDragOverTask = (targetId: string) => {
     if (!draggingId || draggingId === targetId) return;
-    const targetTask = dayTasks.find((t) => t.id === targetId);
-    const draggingTask = dayTasks.find((t) => t.id === draggingId);
-    if (!targetTask || !draggingTask) return;
-
-    const ids = dayTasks.map((t) => t.id).filter((id) => id !== draggingId);
-    const targetIdx = ids.indexOf(targetId);
-    ids.splice(targetIdx, 0, draggingId);
-    const slotPatch =
-      draggingTask.timeSlot !== targetTask.timeSlot
-        ? { [draggingId]: targetTask.timeSlot }
-        : undefined;
-    reorderTasks(selectedDate, ids, slotPatch);
+    const result = computeDragReorder(dayTasks, draggingId, targetId);
+    if (result) {
+      reorderTasks(selectedDate, result.orderedIds, result.slotPatch);
+    }
   };
 
   const handleDropOnSlot = (slot: TimeSlot) => {
@@ -403,8 +392,10 @@ export function SchedulePanel({
                   e.preventDefault();
                   setDragOverSlot(slot.key);
                 }}
-                onDragLeave={() => {
-                  if (dragOverSlot === slot.key) setDragOverSlot(null);
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node) && dragOverSlot === slot.key) {
+                    setDragOverSlot(null);
+                  }
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -434,31 +425,28 @@ export function SchedulePanel({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {slotTasks.map((task) => {
-                      const dayIdx = dayTasks.findIndex((t) => t.id === task.id);
-                      return (
-                        <TaskItem
-                          key={task.id}
-                          task={task}
-                          goal={task.goalId ? goalMap.get(task.goalId) : undefined}
-                          isActive={timerState.activeTaskId === task.id}
-                          isDragging={draggingId === task.id}
-                          canMoveUp={dayIdx > 0}
-                          canMoveDown={dayIdx < dayTasks.length - 1}
-                          onToggleComplete={toggleTaskComplete}
-                          onBind={(id) => bindTask(id)}
-                          onEdit={(t) => setEditingTask(t)}
-                          onDelete={deleteTask}
-                          onMove={handleMove}
-                          onDragStart={(id) => setDraggingId(id)}
-                          onDragOver={handleDragOverTask}
-                          onDragEnd={() => {
-                            setDraggingId(null);
-                            setDragOverSlot(null);
-                          }}
-                        />
-                      );
-                    })}
+                    {slotTasks.map((task, slotIdx) => (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        goal={task.goalId ? goalMap.get(task.goalId) : undefined}
+                        isActive={activeTaskId === task.id}
+                        isDragging={draggingId === task.id}
+                        canMoveUp={slotIdx > 0}
+                        canMoveDown={slotIdx < slotTasks.length - 1}
+                        onToggleComplete={toggleTaskComplete}
+                        onBind={(id) => bindTask(id)}
+                        onEdit={(t) => setEditingTask(t)}
+                        onDelete={deleteTask}
+                        onMove={handleMove}
+                        onDragStart={(id) => setDraggingId(id)}
+                        onDragOver={handleDragOverTask}
+                        onDragEnd={() => {
+                          setDraggingId(null);
+                          setDragOverSlot(null);
+                        }}
+                      />
+                    ))}
                   </div>
                 )}
               </div>

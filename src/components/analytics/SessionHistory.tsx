@@ -105,8 +105,11 @@ export function SessionHistory() {
           <div className="flex flex-wrap items-center gap-2.5 text-xs">
             <input
               type="date"
+              required
               value={addDate}
-              onChange={(e) => setAddDate(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value) setAddDate(e.target.value);
+              }}
               className="tabular-nums rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5"
             />
             <label className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 text-[var(--text-secondary)]">

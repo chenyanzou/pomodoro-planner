@@ -113,7 +113,7 @@ export function TaskItem({
                 {goal.title}
               </span>
             )}
-            {task.note && <span className="truncate">{task.note}</span>}
+            {task.note && <span className="min-w-0 max-w-full truncate">{task.note}</span>}
           </div>
         )}
       </div>
@@ -144,7 +144,7 @@ export function TaskItem({
             disabled={!canMoveUp}
             onClick={() => onMove(task.id, 'up')}
             aria-label="上移任务"
-            className="focus-ring hidden h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] disabled:opacity-25 group-hover:flex"
+            className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] opacity-70 transition hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] disabled:opacity-25 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
           >
             <ArrowUp className="h-3.5 w-3.5" />
           </button>
@@ -153,7 +153,7 @@ export function TaskItem({
             disabled={!canMoveDown}
             onClick={() => onMove(task.id, 'down')}
             aria-label="下移任务"
-            className="focus-ring hidden h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] disabled:opacity-25 group-hover:flex"
+            className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] opacity-70 transition hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)] disabled:opacity-25 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
           >
             <ArrowDown className="h-3.5 w-3.5" />
           </button>

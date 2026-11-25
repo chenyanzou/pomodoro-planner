@@ -115,8 +115,11 @@ export function TaskModal({ task, goals, onClose, onSave }: TaskModalProps) {
               </label>
               <input
                 type="date"
+                required
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value) setDate(e.target.value);
+                }}
                 className="focus-ring tabular-nums w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2 text-sm"
               />
             </div>

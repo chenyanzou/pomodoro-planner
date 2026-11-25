@@ -17,7 +17,7 @@ import type {
   Task,
   TimeSlot,
 } from '../types';
-import { addDays, toLocalDateKey } from '../utils/date';
+import { addDays, isValidDateKey, toLocalDateKey } from '../utils/date';
 import { createEmptyAppState, createSampleAppState } from '../utils/seedData';
 import {
   applyDeleteGoal,
@@ -102,6 +102,9 @@ function uid(prefix: string): string {
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PersistedAppState>(() => loadAppState());
+  const stateRef = useRef<PersistedAppState>(state);
+  stateRef.current = state;
+
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const toastTimerRef = useRef<number | null>(null);
 
@@ -162,80 +165,77 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const addTask = useCallback((input: AddTaskInput): Task => {
     const now = Date.now();
-    let created!: Task;
-    setState((prev) => {
-      const sameDayMaxOrder = prev.tasks
-        .filter((t) => t.date === input.date)
-        .reduce((max, t) => Math.max(max, t.order), -1);
-      created = {
-        id: uid('task'),
-        title: input.title.trim(),
-        note: input.note?.trim() || undefined,
-        date: input.date,
-        timeSlot: input.timeSlot,
-        priority: input.priority,
-        goalId: input.goalId || undefined,
-        estimatedPomodoros: Math.max(1, Math.min(16, Math.round(input.estimatedPomodoros))),
-        completedPomodoros: 0,
-        completed: false,
-        order: sameDayMaxOrder + 1,
-        createdAt: now,
-        updatedAt: now,
-      };
-      return {
-        ...prev,
-        hasSampleData: false,
-        tasks: [...prev.tasks, created],
-      };
-    });
+    const safeDate = isValidDateKey(input.date) ? input.date : toLocalDateKey(now);
+    const sameDayMaxOrder = stateRef.current.tasks
+      .filter((t) => t.date === safeDate)
+      .reduce((max, t) => Math.max(max, t.order), -1);
+
+    const created: Task = {
+      id: uid('task'),
+      title: input.title.trim(),
+      note: input.note?.trim() || undefined,
+      date: safeDate,
+      timeSlot: input.timeSlot,
+      priority: input.priority,
+      goalId: input.goalId || undefined,
+      estimatedPomodoros: Math.max(1, Math.min(16, Math.round(input.estimatedPomodoros))),
+      completedPomodoros: 0,
+      completed: false,
+      order: sameDayMaxOrder + 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    setState((prev) => ({
+      ...prev,
+      hasSampleData: false,
+      tasks: [...prev.tasks, created],
+    }));
     return created;
   }, []);
 
   const updateTask = useCallback((id: string, patch: Partial<Omit<Task, 'id' | 'createdAt'>>) => {
     setState((prev) => ({
       ...prev,
-      tasks: prev.tasks.map((task) =>
-        task.id === id
-          ? {
-              ...task,
-              ...patch,
-              title: patch.title !== undefined ? patch.title.trim() || task.title : task.title,
-              estimatedPomodoros:
-                patch.estimatedPomodoros !== undefined
-                  ? Math.max(1, Math.min(16, Math.round(patch.estimatedPomodoros)))
-                  : task.estimatedPomodoros,
-              completedPomodoros:
-                patch.completedPomodoros !== undefined
-                  ? Math.max(0, Math.round(patch.completedPomodoros))
-                  : task.completedPomodoros,
-              updatedAt: Date.now(),
-            }
-          : task,
-      ),
+      tasks: prev.tasks.map((task) => {
+        if (task.id !== id) return task;
+        const safeDate =
+          patch.date !== undefined && isValidDateKey(patch.date) ? patch.date : task.date;
+        return {
+          ...task,
+          ...patch,
+          date: safeDate,
+          title: patch.title !== undefined ? patch.title.trim() || task.title : task.title,
+          estimatedPomodoros:
+            patch.estimatedPomodoros !== undefined
+              ? Math.max(1, Math.min(16, Math.round(patch.estimatedPomodoros)))
+              : task.estimatedPomodoros,
+          completedPomodoros:
+            patch.completedPomodoros !== undefined
+              ? Math.max(0, Math.round(patch.completedPomodoros))
+              : task.completedPomodoros,
+          updatedAt: Date.now(),
+        };
+      }),
     }));
   }, []);
 
   const deleteTask = useCallback(
     (id: string) => {
-      let deletedSnapshot: Task | undefined;
-      setState((prev) => {
-        deletedSnapshot = prev.tasks.find((t) => t.id === id);
-        if (!deletedSnapshot) return prev;
-        return applyDeleteTask(prev, id);
+      const snapshot = stateRef.current.tasks.find((t) => t.id === id);
+      if (!snapshot) return;
+
+      setState((prev) => applyDeleteTask(prev, id));
+      showToast(`已删除任务「${snapshot.title}」`, {
+        label: '撤销',
+        onUndo: () => {
+          setState((prev) => {
+            if (prev.tasks.some((t) => t.id === snapshot.id)) return prev;
+            return { ...prev, tasks: [...prev.tasks, snapshot] };
+          });
+          dismissToast();
+        },
       });
-      if (deletedSnapshot) {
-        const snapshot = deletedSnapshot;
-        showToast(`已删除任务「${snapshot.title}」`, {
-          label: '撤销',
-          onUndo: () => {
-            setState((prev) => {
-              if (prev.tasks.some((t) => t.id === snapshot.id)) return prev;
-              return { ...prev, tasks: [...prev.tasks, snapshot] };
-            });
-            dismissToast();
-          },
-        });
-      }
     },
     [dismissToast, showToast],
   );
@@ -253,21 +253,24 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     (date: string, orderedTaskIds: string[], updatedSlotMap?: Record<string, TimeSlot>) => {
       const orderIndex = new Map<string, number>();
       orderedTaskIds.forEach((id, idx) => orderIndex.set(id, idx));
-      setState((prev) => ({
-        ...prev,
-        tasks: prev.tasks.map((task) => {
+      setState((prev) => {
+        let changed = false;
+        const nextTasks = prev.tasks.map((task) => {
           if (task.date !== date) return task;
           const nextOrder = orderIndex.get(task.id);
           const nextSlot = updatedSlotMap?.[task.id] ?? task.timeSlot;
-          if (nextOrder === undefined && nextSlot === task.timeSlot) return task;
+          const targetOrder = nextOrder ?? task.order;
+          if (targetOrder === task.order && nextSlot === task.timeSlot) return task;
+          changed = true;
           return {
             ...task,
-            order: nextOrder ?? task.order,
+            order: targetOrder,
             timeSlot: nextSlot,
             updatedAt: Date.now(),
           };
-        }),
-      }));
+        });
+        return changed ? { ...prev, tasks: nextTasks } : prev;
+      });
     },
     [],
   );
@@ -276,18 +279,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     (fromDate: string, toDate?: string): number => {
       const todayKey = toLocalDateKey();
       const targetDate = toDate ?? (fromDate < todayKey ? todayKey : addDays(fromDate, 1));
-      let movedCount = 0;
+      const toMove = stateRef.current.tasks.filter((t) => t.date === fromDate && !t.completed);
+      if (toMove.length === 0) return 0;
 
+      const moveIds = new Set(toMove.map((t) => t.id));
       setState((prev) => {
-        const toMove = prev.tasks.filter((t) => t.date === fromDate && !t.completed);
-        movedCount = toMove.length;
-        if (movedCount === 0) return prev;
-
         let maxOrder = prev.tasks
           .filter((t) => t.date === targetDate)
           .reduce((max, t) => Math.max(max, t.order), -1);
 
-        const moveIds = new Set(toMove.map((t) => t.id));
         return {
           ...prev,
           tasks: prev.tasks.map((task) => {
@@ -298,10 +298,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         };
       });
 
-      if (movedCount > 0) {
-        showToast(`已将 ${movedCount} 项未完成任务顺延至 ${targetDate === todayKey ? '今天' : targetDate}`);
-      }
-      return movedCount;
+      showToast(
+        `已将 ${toMove.length} 项未完成任务顺延至 ${targetDate === todayKey ? '今天' : targetDate}`,
+      );
+      return toMove.length;
     },
     [showToast],
   );
@@ -313,7 +313,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       description: input.description?.trim() || undefined,
       color: input.color,
       targetPomodoros: Math.max(1, Math.min(999, Math.round(input.targetPomodoros))),
-      deadline: input.deadline || undefined,
+      deadline: input.deadline && isValidDateKey(input.deadline) ? input.deadline : undefined,
       archived: false,
       createdAt: Date.now(),
     };
@@ -334,6 +334,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
               ...g,
               ...patch,
               title: patch.title !== undefined ? patch.title.trim() || g.title : g.title,
+              deadline:
+                patch.deadline !== undefined
+                  ? patch.deadline && isValidDateKey(patch.deadline)
+                    ? patch.deadline
+                    : undefined
+                  : g.deadline,
               targetPomodoros:
                 patch.targetPomodoros !== undefined
                   ? Math.max(1, Math.min(999, Math.round(patch.targetPomodoros)))
@@ -346,14 +352,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const deleteGoal = useCallback(
     (id: string) => {
-      let deletedTitle = '';
-      setState((prev) => {
-        deletedTitle = prev.goals.find((g) => g.id === id)?.title ?? '';
-        return applyDeleteGoal(prev, id);
-      });
-      if (deletedTitle) {
-        showToast(`已删除目标「${deletedTitle}」，历史任务与专注记录已保留`);
-      }
+      const target = stateRef.current.goals.find((g) => g.id === id);
+      if (!target) return;
+      setState((prev) => applyDeleteGoal(prev, id));
+      showToast(`已删除目标「${target.title}」，历史任务与专注记录已保留`);
     },
     [showToast],
   );
@@ -405,6 +407,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const addManualSession = useCallback(
     (input: ManualSessionInput) => {
       const now = Date.now();
+      const safeDate = isValidDateKey(input.date) ? input.date : toLocalDateKey(now);
       const durationMinutes = Math.max(1, Math.min(240, Math.round(input.durationMinutes)));
       setState((prev) => {
         const goal = input.goalId ? prev.goals.find((g) => g.id === input.goalId) : undefined;
@@ -417,7 +420,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           goalColorSnapshot: goal?.color,
           phase: 'focus',
           durationMinutes,
-          date: input.date,
+          date: safeDate,
           startedAt: now - durationMinutes * 60_000,
           endedAt: now,
           note: input.note?.trim() || undefined,
@@ -445,6 +448,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             ? {
                 ...s,
                 ...patch,
+                date: patch.date && isValidDateKey(patch.date) ? patch.date : s.date,
                 taskTitleSnapshot:
                   patch.taskTitleSnapshot !== undefined
                     ? patch.taskTitleSnapshot.trim() || s.taskTitleSnapshot
@@ -463,25 +467,22 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const deleteFocusSession = useCallback(
     (id: string) => {
-      let snapshot: FocusSession | undefined;
-      setState((prev) => {
-        snapshot = prev.sessions.find((s) => s.id === id);
-        if (!snapshot) return prev;
-        return { ...prev, sessions: prev.sessions.filter((s) => s.id !== id) };
+      const deleted = stateRef.current.sessions.find((s) => s.id === id);
+      if (!deleted) return;
+      setState((prev) => ({
+        ...prev,
+        sessions: prev.sessions.filter((s) => s.id !== id),
+      }));
+      showToast('已删除该条专注记录', {
+        label: '撤销',
+        onUndo: () => {
+          setState((prev) => {
+            if (prev.sessions.some((s) => s.id === deleted.id)) return prev;
+            return { ...prev, sessions: [deleted, ...prev.sessions] };
+          });
+          dismissToast();
+        },
       });
-      if (snapshot) {
-        const deleted = snapshot;
-        showToast('已删除该条专注记录', {
-          label: '撤销',
-          onUndo: () => {
-            setState((prev) => {
-              if (prev.sessions.some((s) => s.id === deleted.id)) return prev;
-              return { ...prev, sessions: [deleted, ...prev.sessions] };
-            });
-            dismissToast();
-          },
-        });
-      }
     },
     [dismissToast, showToast],
   );
