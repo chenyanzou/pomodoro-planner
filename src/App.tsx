@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import { AppDataProvider, useAppData } from './context/AppDataContext';
 import { TimerProvider, useTimerActions } from './context/TimerContext';
 import { Header, type ActiveTab } from './components/layout/Header';
@@ -35,7 +36,14 @@ function isEditableOrInteractive(target: EventTarget | null, code: string): bool
 
 function AppShell() {
   const { state, isDemoMode, exitDemoMode } = useAppData();
-  const { toggle, reset, registerPhaseCompleteListener } = useTimerActions();
+  const { toggle, reset, registerPhaseCompleteListener, phase, status } = useTimerActions();
+
+  // Drive global phase ambience (ember glow for focus, sage glow for breaks) without tick subscriptions
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.phase = phase === 'focus' ? 'focus' : 'break';
+    root.dataset.running = status === 'running' ? 'true' : 'false';
+  }, [phase, status]);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('focus');
   const [selectedDate, setSelectedDate] = useState<string>(() => toLocalDateKey());
@@ -140,7 +148,7 @@ function AppShell() {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[var(--bg-canvas)] pb-20 text-[var(--text-primary)] md:pb-8">
+    <div className="min-h-screen overflow-x-hidden pb-24 text-[var(--text-primary)] md:pb-10">
       <Header
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -149,23 +157,33 @@ function AppShell() {
       />
 
       {isDemoMode && (
-        <div className="border-b border-[var(--accent-focus)]/25 bg-[var(--accent-focus-soft)]/80 px-4 py-2 text-center text-xs text-[var(--text-primary)]">
-          <span>
-            当前处于 <strong>演示模式</strong>：展示内置示例数据，可自由操作体验，退出后自动恢复你的个人本地数据。
-          </span>
-          <button
-            type="button"
-            onClick={exitDemoMode}
-            className="focus-ring ml-2.5 inline-flex items-center rounded-lg bg-[var(--accent-focus)] px-2.5 py-0.5 text-[11px] font-medium text-white hover:bg-[var(--accent-focus-hover)]"
-          >
-            退出演示
-          </button>
+        <div className="animate-fade-in mx-auto max-w-6xl px-3.5 pt-3.5 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[color-mix(in_srgb,var(--accent-gold)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent-gold)_10%,var(--bg-surface))] px-4 py-2 text-xs text-[var(--text-secondary)]">
+            <span className="flex min-w-0 items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 shrink-0 text-[var(--accent-gold)]" />
+              <span>
+                <strong className="font-semibold text-[var(--text-primary)]">演示模式</strong>
+                <span className="mx-1.5 text-[var(--border-strong)]">·</span>
+                内置示例数据可自由操作体验，退出后自动恢复你的个人本地数据。
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={exitDemoMode}
+              className="focus-ring shrink-0 font-medium text-[var(--accent-focus)] underline-offset-4 hover:underline"
+            >
+              恢复我的数据 →
+            </button>
+          </div>
         </div>
       )}
 
       {activeTab === 'focus' && (
-        <main className="mx-auto grid max-w-6xl gap-6 px-3.5 py-5 sm:px-6 sm:py-6 lg:grid-cols-12 lg:items-start">
-          <div className="min-w-0 lg:col-span-5 lg:sticky lg:top-20">
+        <main
+          key="focus"
+          className="view-enter mx-auto grid max-w-6xl gap-5 px-3.5 py-5 sm:px-6 sm:py-7 lg:grid-cols-12 lg:items-start lg:gap-6"
+        >
+          <div className="min-w-0 lg:col-span-5 lg:sticky lg:top-24">
             <TimerCard onEnterImmersive={() => setImmersive(true)} />
           </div>
           <div className="min-w-0 lg:col-span-7">
@@ -178,18 +196,25 @@ function AppShell() {
         </main>
       )}
 
-      {activeTab === 'goals' && <GoalsView onJumpToSchedule={handleJumpToSchedule} />}
+      {activeTab === 'goals' && (
+        <div key="goals" className="view-enter">
+          <GoalsView onJumpToSchedule={handleJumpToSchedule} />
+        </div>
+      )}
 
       {activeTab === 'analytics' && (
-        <Suspense
-          fallback={
-            <div className="mx-auto max-w-6xl px-4 py-16 text-center text-sm text-[var(--text-muted)] sm:px-6">
-              正在加载复盘统计图表...
-            </div>
-          }
-        >
-          <AnalyticsView />
-        </Suspense>
+        <div key="analytics" className="view-enter">
+          <Suspense
+            fallback={
+              <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-20 text-center text-sm text-[var(--text-muted)] sm:px-6">
+                <span className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--border-strong)] border-t-[var(--accent-focus)]" />
+                正在加载复盘统计…
+              </div>
+            }
+          >
+            <AnalyticsView />
+          </Suspense>
+        </div>
       )}
 
       {immersive && <ImmersiveOverlay onClose={() => setImmersive(false)} />}

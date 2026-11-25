@@ -16,12 +16,33 @@ const NAV_ITEMS: Array<{ key: ActiveTab; label: string; icon: typeof Clock3 }> =
   { key: 'analytics', label: '复盘统计', icon: BarChart3 },
 ];
 
-export function Header({
-  activeTab,
-  onSelectTab,
-  onOpenSettings,
-  onOpenShortcuts,
-}: HeaderProps) {
+export function BrandMark({ className = 'h-9 w-9' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 40 40" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="bm-body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="var(--accent-focus)" />
+          <stop offset="1" stopColor="var(--accent-focus-deep)" />
+        </linearGradient>
+      </defs>
+      <rect x="1" y="1" width="38" height="38" rx="12" fill="url(#bm-body)" />
+      <rect x="1.5" y="1.5" width="37" height="37" rx="11.5" fill="none" stroke="#fff" strokeOpacity="0.18" />
+      <circle cx="20" cy="22" r="10" fill="none" stroke="#fff" strokeOpacity="0.32" strokeWidth="2.4" />
+      <path
+        d="M20 12 a10 10 0 0 1 9.5 13"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <circle cx="20" cy="22" r="1.8" fill="#fff" />
+      <path d="M20 22 L20 16.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+      <path d="M20 11.5 q-4 -4 -7 -2 q3 0.6 4.4 3 M20 11.5 q4 -4 7 -2 q-3 0.6 -4.4 3" fill="#fff" fillOpacity="0.9" />
+    </svg>
+  );
+}
+
+export function Header({ activeTab, onSelectTab, onOpenSettings, onOpenShortcuts }: HeaderProps) {
   const { state, isDemoMode, toggleDemoMode, updateSettings } = useAppData();
   const isDark =
     state.settings.theme === 'dark' ||
@@ -34,27 +55,19 @@ export function Header({
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)]/90 backdrop-blur-md">
+    <header className="glass-bar sticky top-0 z-30 border-b border-[color-mix(in_srgb,var(--border-subtle)_80%,transparent)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2.5">
-          <span
-            aria-hidden="true"
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--accent-focus)] text-base text-white shadow-xs"
-          >
-            🍅
-          </span>
-          <div>
-            <h1 className="text-base font-semibold tracking-tight leading-tight">番茄计划</h1>
-            <p className="hidden text-[11px] text-[var(--text-muted)] leading-tight sm:block">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <BrandMark className="h-9 w-9 shrink-0 drop-shadow-[0_4px_10px_color-mix(in_srgb,var(--accent-focus)_35%,transparent)]" />
+          <div className="min-w-0 leading-none">
+            <h1 className="whitespace-nowrap text-[15px] font-semibold tracking-[0.02em]">番茄计划</h1>
+            <p className="font-serif-italic mt-1 hidden whitespace-nowrap text-[12px] text-[var(--text-muted)] sm:block">
               Pomodoro Planner
             </p>
           </div>
         </div>
 
-        <nav
-          aria-label="主导航"
-          className="hidden items-center gap-1 rounded-2xl bg-[var(--bg-subtle)] p-1 md:inline-flex"
-        >
+        <nav aria-label="主导航" className="seg hidden md:inline-flex">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = activeTab === item.key;
@@ -64,13 +77,13 @@ export function Header({
                 type="button"
                 onClick={() => onSelectTab(item.key)}
                 aria-current={active ? 'page' : undefined}
-                className={`focus-ring inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-sm font-medium transition ${
-                  active
-                    ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
+                data-active={active}
+                className="seg-item focus-ring inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[13px]"
               >
-                <Icon className="h-4 w-4" />
+                <Icon
+                  className={`h-4 w-4 transition-colors ${active ? 'text-[var(--accent-focus)]' : ''}`}
+                  strokeWidth={active ? 2.3 : 2}
+                />
                 {item.label}
               </button>
             );
@@ -84,7 +97,7 @@ export function Header({
               onClick={onOpenShortcuts}
               title="快捷键速查 (?)"
               aria-label="打开快捷键速查"
-              className="focus-ring hidden h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] sm:flex"
+              className="focus-ring icon-btn hidden sm:inline-flex"
             >
               <Keyboard className="h-4 w-4" />
             </button>
@@ -93,16 +106,12 @@ export function Header({
           <button
             type="button"
             onClick={toggleDemoMode}
-            title={
-              isDemoMode
-                ? '退出演示模式并恢复个人数据'
-                : '进入演示模式（预览完整示例数据，不影响个人数据）'
-            }
+            title={isDemoMode ? '退出演示模式并恢复个人数据' : '进入演示模式（预览完整示例数据，不影响个人数据）'}
             aria-pressed={isDemoMode}
-            className={`focus-ring inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition ${
+            className={`focus-ring group relative inline-flex h-9 shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-[0.8rem] border px-3 text-xs font-semibold transition-all duration-200 ${
               isDemoMode
-                ? 'border-[var(--accent-focus)] bg-[var(--accent-focus)] text-white hover:bg-[var(--accent-focus-hover)]'
-                : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+                ? 'border-transparent bg-[var(--text-primary)] text-[var(--bg-surface)] hover:opacity-90'
+                : 'border-[color-mix(in_srgb,var(--accent-gold)_45%,var(--border-subtle))] bg-[color-mix(in_srgb,var(--accent-gold)_10%,var(--bg-surface))] text-[var(--text-primary)] hover:-translate-y-px hover:border-[var(--accent-gold)] hover:shadow-[0_6px_16px_-8px_var(--accent-gold)]'
             }`}
           >
             {isDemoMode ? (
@@ -112,7 +121,7 @@ export function Header({
               </>
             ) : (
               <>
-                <Sparkles className="h-3.5 w-3.5 text-[var(--accent-focus)]" />
+                <Sparkles className="h-3.5 w-3.5 text-[var(--accent-gold)] transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />
                 <span>演示</span>
               </>
             )}
@@ -121,11 +130,13 @@ export function Header({
           <button
             type="button"
             onClick={toggleTheme}
-            title={isDark ? '切换暖纸浅色' : '切换暖炭深色'}
-            aria-label={isDark ? '切换至浅色暖纸主题' : '切换至深色暖炭主题'}
-            className="focus-ring flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+            title={isDark ? '切换暖纸浅色' : '切换暗夜书房深色'}
+            aria-label={isDark ? '切换至浅色暖纸主题' : '切换至深色暗夜书房主题'}
+            className="focus-ring icon-btn overflow-hidden"
           >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            <span key={isDark ? 'sun' : 'moon'} className="animate-scale-in inline-flex">
+              {isDark ? <Sun className="h-4 w-4 text-[var(--accent-gold)]" /> : <Moon className="h-4 w-4" />}
+            </span>
           </button>
 
           {onOpenSettings && (
@@ -134,9 +145,9 @@ export function Header({
               onClick={onOpenSettings}
               title="设置与数据备份"
               aria-label="打开设置与数据备份"
-              className="focus-ring flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+              className="focus-ring icon-btn group"
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="h-4 w-4 transition-transform duration-500 group-hover:rotate-90" />
             </button>
           )}
         </div>

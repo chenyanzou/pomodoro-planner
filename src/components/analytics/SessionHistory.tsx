@@ -1,25 +1,47 @@
-import { useState, type FormEvent } from 'react';
-import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
+import { Check, ChevronDown, Pencil, Plus, Sparkles, Target, Trash2, X } from 'lucide-react';
 import { useAppData } from '../../context/AppDataContext';
 import type { FocusSession } from '../../types';
 import { formatTimeClock, toLocalDateKey } from '../../utils/date';
+import { Dropdown } from '../ui/Dropdown';
+import { EmptyState } from '../ui/EmptyState';
+
+function clampMinutes(n: number) {
+  return Math.max(1, Math.min(240, Math.round(n) || 1));
+}
 
 export function SessionHistory() {
-  const { state, addManualSession, updateFocusSession, deleteFocusSession } = useAppData();
+  const { state, isDemoMode, toggleDemoMode, addManualSession, updateFocusSession, deleteFocusSession } =
+    useAppData();
 
   const [showAdd, setShowAdd] = useState(false);
   const [addTitle, setAddTitle] = useState('');
   const [addGoalId, setAddGoalId] = useState('');
   const [addDate, setAddDate] = useState(() => toLocalDateKey());
-  const [addMinutes, setAddMinutes] = useState(25);
+  const [addMinutesDraft, setAddMinutesDraft] = useState('25');
   const [addNote, setAddNote] = useState('');
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editMinutes, setEditMinutes] = useState(25);
+  const [editMinutesDraft, setEditMinutesDraft] = useState('25');
   const [editNote, setEditNote] = useState('');
+  const [visibleLimit, setVisibleLimit] = useState(20);
 
-  const sortedSessions = [...state.sessions].sort((a, b) => b.endedAt - a.endedAt);
+  const sortedSessions = useMemo(
+    () =>
+      [...state.sessions].sort(
+        (a, b) => b.date.localeCompare(a.date) || b.endedAt - a.endedAt,
+      ),
+    [state.sessions],
+  );
+
+  const goalOptions = useMemo(
+    () => [
+      { value: '', label: '不关联目标（日常零散专注）', icon: <Target className="h-3.5 w-3.5 text-[var(--text-muted)]" /> },
+      ...state.goals.map((g) => ({ value: g.id, label: g.title, color: g.color })),
+    ],
+    [state.goals],
+  );
 
   const handleAddSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -27,20 +49,20 @@ export function SessionHistory() {
     addManualSession({
       taskTitleSnapshot: addTitle,
       goalId: addGoalId || undefined,
-      durationMinutes: addMinutes,
+      durationMinutes: clampMinutes(Number(addMinutesDraft)),
       date: addDate,
       note: addNote,
     });
     setAddTitle('');
     setAddNote('');
-    setAddMinutes(25);
+    setAddMinutesDraft('25');
     setShowAdd(false);
   };
 
   const startEdit = (session: FocusSession) => {
     setEditingId(session.id);
     setEditTitle(session.taskTitleSnapshot);
-    setEditMinutes(session.durationMinutes);
+    setEditMinutesDraft(String(session.durationMinutes));
     setEditNote(session.note ?? '');
   };
 
@@ -48,26 +70,34 @@ export function SessionHistory() {
     if (!editTitle.trim()) return;
     updateFocusSession(id, {
       taskTitleSnapshot: editTitle,
-      durationMinutes: editMinutes,
+      durationMinutes: clampMinutes(Number(editMinutesDraft)),
       note: editNote.trim() || undefined,
     });
     setEditingId(null);
   };
 
+  const visibleSessions = sortedSessions.slice(0, visibleLimit);
+  const remainingCount = sortedSessions.length - visibleSessions.length;
+
   return (
-    <section className="paper-card rounded-3xl p-5 sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-4">
+    <section className="paper-card rounded-[26px] p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-4">
         <div>
-          <h3 className="text-base font-semibold">专注历史流水</h3>
-          <p className="text-xs text-[var(--text-muted)]">
-            支持手动补录、编辑时长/备注或删除，上方所有图表将实时重算
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold tracking-tight">专注历史流水</h3>
+            <span className="chip bg-[var(--bg-subtle)] text-[var(--text-secondary)]">
+              <span className="tabular-nums">{sortedSessions.length}</span> 条
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+            支持手动补录、编辑时长或备注，上方所有图表将实时重算
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setShowAdd((prev) => !prev)}
-          className="focus-ring inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent-focus)] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[var(--accent-focus-hover)]"
+          className="focus-ring btn-primary h-9 rounded-xl px-3.5 text-xs"
         >
           <Plus className="h-3.5 w-3.5" />
           补录专注记录
@@ -77,7 +107,7 @@ export function SessionHistory() {
       {showAdd && (
         <form
           onSubmit={handleAddSubmit}
-          className="mt-4 space-y-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-4"
+          className="animate-fade-up mt-4 space-y-3 rounded-2xl border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--bg-subtle)_45%,var(--bg-surface))] p-4"
         >
           <div className="grid gap-2.5 sm:grid-cols-2">
             <input
@@ -87,22 +117,20 @@ export function SessionHistory() {
               value={addTitle}
               onChange={(e) => setAddTitle(e.target.value)}
               placeholder="专注事项名称（如：线代习题整理）"
-              className="focus-ring rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-sm"
+              className="field rounded-xl px-3.5 py-2 text-sm"
             />
-            <select
-              value={addGoalId}
-              onChange={(e) => setAddGoalId(e.target.value)}
-              className="focus-ring rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-secondary)]"
-            >
-              <option value="">不关联目标（日常零散专注）</option>
-              {state.goals.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.title}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center">
+              <Dropdown
+                ariaLabel="关联目标"
+                value={addGoalId}
+                options={goalOptions}
+                onChange={setAddGoalId}
+                maxLabelWidth="14rem"
+                className="w-full"
+              />
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2.5 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <input
               type="date"
               required
@@ -110,17 +138,18 @@ export function SessionHistory() {
               onChange={(e) => {
                 if (e.target.value) setAddDate(e.target.value);
               }}
-              className="tabular-nums rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5"
+              className="field tabular-nums h-8 rounded-xl px-2.5 text-xs"
             />
-            <label className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 text-[var(--text-secondary)]">
+            <label className="field inline-flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-[var(--text-secondary)]">
               时长
               <input
-                type="number"
-                min={1}
-                max={240}
-                value={addMinutes}
-                onChange={(e) => setAddMinutes(Math.max(1, Math.min(240, Number(e.target.value) || 1)))}
-                className="tabular-nums w-12 bg-transparent text-center font-medium text-[var(--text-primary)] outline-none"
+                type="text"
+                inputMode="numeric"
+                value={addMinutesDraft}
+                onChange={(e) => setAddMinutesDraft(e.target.value.replace(/[^\d]/g, '').slice(0, 3))}
+                onBlur={() => setAddMinutesDraft(String(clampMinutes(Number(addMinutesDraft))))}
+                aria-label="补录专注时长（分钟）"
+                className="num-display w-10 bg-transparent text-center text-xs font-semibold !tracking-normal text-[var(--text-primary)] outline-none"
               />
               分钟
             </label>
@@ -129,20 +158,13 @@ export function SessionHistory() {
               value={addNote}
               onChange={(e) => setAddNote(e.target.value)}
               placeholder="备注（可选）"
-              className="focus-ring min-w-[160px] flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5"
+              className="field h-8 min-w-[140px] flex-1 rounded-xl px-3 text-xs"
             />
             <div className="ml-auto flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => setShowAdd(false)}
-                className="rounded-xl px-3 py-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)]"
-              >
+              <button type="button" onClick={() => setShowAdd(false)} className="focus-ring btn-soft h-8 px-3 text-xs">
                 取消
               </button>
-              <button
-                type="submit"
-                className="rounded-xl bg-[var(--accent-focus)] px-3.5 py-1.5 font-medium text-white hover:opacity-90"
-              >
+              <button type="submit" className="focus-ring btn-primary h-8 rounded-xl px-3.5 text-xs">
                 保存记录
               </button>
             </div>
@@ -152,114 +174,153 @@ export function SessionHistory() {
 
       <div className="mt-4 space-y-2">
         {sortedSessions.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[var(--border-strong)] py-10 text-center text-sm text-[var(--text-muted)]">
-            还没有专注流水记录
-          </div>
+          <EmptyState
+            compact
+            variant="analytics"
+            title="还没有专注历史流水"
+            description="完成一次番茄钟会自动写入记录，也可以点击下方手动补录线下学习时长。"
+            actions={
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowAdd(true)}
+                  className="focus-ring btn-primary h-9 rounded-xl px-4 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  补录第一条记录
+                </button>
+                {!isDemoMode && (
+                  <button type="button" onClick={toggleDemoMode} className="focus-ring btn-soft h-9 px-3.5 text-xs">
+                    <Sparkles className="h-3.5 w-3.5 text-[var(--accent-gold)]" />
+                    看看演示
+                  </button>
+                )}
+              </>
+            }
+          />
         ) : (
-          sortedSessions.slice(0, 40).map((session) => {
-            const isEditing = editingId === session.id;
-            if (isEditing) {
+          <>
+            {visibleSessions.map((session) => {
+              const isEditing = editingId === session.id;
+              if (isEditing) {
+                return (
+                  <div
+                    key={session.id}
+                    className="animate-fade-in flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--accent-focus)] bg-[color-mix(in_srgb,var(--accent-focus-soft)_35%,var(--bg-surface))] p-3 text-sm"
+                  >
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      aria-label="编辑事项名称"
+                      className="field min-w-[150px] flex-1 rounded-xl px-3 py-1.5 text-sm"
+                    />
+                    <label className="field inline-flex h-8 items-center gap-1 rounded-xl px-2.5 text-xs text-[var(--text-secondary)]">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={editMinutesDraft}
+                        onChange={(e) => setEditMinutesDraft(e.target.value.replace(/[^\d]/g, '').slice(0, 3))}
+                        onBlur={() => setEditMinutesDraft(String(clampMinutes(Number(editMinutesDraft))))}
+                        aria-label="编辑专注分钟数"
+                        className="num-display w-10 bg-transparent text-center text-xs font-semibold !tracking-normal text-[var(--text-primary)] outline-none"
+                      />
+                      分钟
+                    </label>
+                    <input
+                      type="text"
+                      value={editNote}
+                      onChange={(e) => setEditNote(e.target.value)}
+                      placeholder="备注"
+                      aria-label="编辑备注"
+                      className="field h-8 w-36 rounded-xl px-2.5 text-xs"
+                    />
+                    <div className="ml-auto flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(session.id)}
+                        aria-label="保存专注记录"
+                        className="focus-ring flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--accent-break)] text-[var(--on-accent)] transition hover:opacity-90"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        aria-label="取消编辑"
+                        className="focus-ring icon-btn h-8 w-8"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={session.id}
-                  className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--accent-focus)] bg-[var(--bg-canvas)] p-3 text-sm"
+                  className="task-card group flex min-w-0 items-center justify-between gap-3 rounded-2xl px-3.5 py-2.5"
                 >
-                  <input
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="focus-ring min-w-[160px] flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm"
-                  />
-                  <label className="inline-flex items-center gap-1 text-xs text-[var(--text-secondary)]">
-                    <input
-                      type="number"
-                      min={1}
-                      max={240}
-                      value={editMinutes}
-                      onChange={(e) =>
-                        setEditMinutes(Math.max(1, Math.min(240, Number(e.target.value) || 1)))
-                      }
-                      className="tabular-nums w-14 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1 text-center text-sm"
-                    />
-                    分钟
-                  </label>
-                  <input
-                    type="text"
-                    value={editNote}
-                    onChange={(e) => setEditNote(e.target.value)}
-                    placeholder="备注"
-                    className="focus-ring w-40 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs"
-                  />
-                  <div className="ml-auto flex gap-1">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-sm font-medium text-[var(--text-primary)]">
+                        {session.taskTitleSnapshot}
+                      </span>
+                      {session.goalTitleSnapshot && (
+                        <span className="chip max-w-full bg-[var(--bg-subtle)] text-[var(--text-secondary)]">
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: session.goalColorSnapshot ?? '#9C9488' }}
+                          />
+                          <span className="truncate">{session.goalTitleSnapshot}</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="tabular-nums mt-0.5 truncate text-xs text-[var(--text-muted)]">
+                      {session.date} · {formatTimeClock(session.startedAt)}–{formatTimeClock(session.endedAt)}
+                      {session.note ? ` · ${session.note}` : ''}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="num-display rounded-xl bg-[var(--accent-focus-soft)] px-2.5 py-1 text-xs font-semibold !tracking-normal text-[var(--accent-focus)]">
+                      {session.durationMinutes} 分钟
+                    </span>
                     <button
                       type="button"
-                      onClick={() => saveEdit(session.id)}
-                      aria-label="保存专注记录"
-                      className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--accent-break)] text-white"
+                      onClick={() => startEdit(session)}
+                      aria-label="编辑该条专注记录"
+                      className="focus-ring flex h-8 w-8 items-center justify-center rounded-xl text-[var(--text-secondary)] transition hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)]"
                     >
-                      <Check className="h-3.5 w-3.5" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEditingId(null)}
-                      aria-label="取消编辑"
-                      className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--bg-subtle)] text-[var(--text-secondary)]"
+                      onClick={() => deleteFocusSession(session.id)}
+                      aria-label="删除该条专注记录"
+                      className="focus-ring flex h-8 w-8 items-center justify-center rounded-xl text-[var(--text-secondary)] transition hover:bg-[var(--accent-focus-soft)] hover:text-[var(--accent-focus)]"
                     >
-                      <X className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
               );
-            }
+            })}
 
-            return (
-              <div
-                key={session.id}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)]/60 px-3.5 py-2.5 transition hover:border-[var(--border-strong)]"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-sm font-medium">{session.taskTitleSnapshot}</span>
-                    {session.goalTitleSnapshot && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-subtle)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
-                        <span
-                          className="h-1.5 w-1.5 rounded-full"
-                          style={{ backgroundColor: session.goalColorSnapshot ?? '#9C9488' }}
-                        />
-                        {session.goalTitleSnapshot}
-                      </span>
-                    )}
-                  </div>
-                  <p className="tabular-nums mt-0.5 text-xs text-[var(--text-muted)]">
-                    {session.date} · {formatTimeClock(session.startedAt)}–{formatTimeClock(session.endedAt)}
-                    {session.note ? ` · ${session.note}` : ''}
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <span className="tabular-nums rounded-xl bg-[var(--accent-focus-soft)] px-2.5 py-1 text-xs font-medium text-[var(--accent-focus)]">
-                    {session.durationMinutes} 分钟
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => startEdit(session)}
-                    aria-label="编辑该条专注记录"
-                    className="focus-ring flex h-8 w-8 items-center justify-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)] hover:text-[var(--text-primary)]"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteFocusSession(session.id)}
-                    aria-label="删除该条专注记录"
-                    className="focus-ring flex h-8 w-8 items-center justify-center rounded-xl text-[var(--text-secondary)] hover:bg-[var(--accent-focus-soft)] hover:text-[var(--accent-focus)]"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+            {remainingCount > 0 && (
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setVisibleLimit((prev) => prev + 20)}
+                  className="focus-ring btn-soft h-9 px-4 text-xs"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                  加载更多（还有 {remainingCount} 条）
+                </button>
               </div>
-            );
-          })
+            )}
+          </>
         )}
       </div>
     </section>

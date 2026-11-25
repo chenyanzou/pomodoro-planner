@@ -1,223 +1,222 @@
-import {
-  Maximize2,
-  Pause,
-  Play,
-  RotateCcw,
-  SkipForward,
-  Target,
-  Volume2,
-  VolumeX,
-  X,
-} from 'lucide-react';
+import { Maximize2, Pause, Play, RotateCcw, SkipForward, Target, Volume2, VolumeX, X } from 'lucide-react';
 import { useAppData } from '../../context/AppDataContext';
 import { formatSecondsMMSS, useTimer } from '../../context/TimerContext';
 import type { AmbientNoiseMode, TimerPhase } from '../../types';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import { Dropdown } from '../ui/Dropdown';
+import { FocusDial } from './FocusDial';
 
 interface TimerCardProps {
   onEnterImmersive: () => void;
 }
 
-const PHASE_TABS: Array<{ key: TimerPhase; label: string }> = [
-  { key: 'focus', label: '专注' },
-  { key: 'shortBreak', label: '短休' },
-  { key: 'longBreak', label: '长休' },
+const PHASE_TABS: Array<{ value: TimerPhase; label: string }> = [
+  { value: 'focus', label: '专注' },
+  { value: 'shortBreak', label: '短休' },
+  { value: 'longBreak', label: '长休' },
 ];
 
-const NOISE_MODES: Array<{ value: AmbientNoiseMode; label: string }> = [
-  { value: 'off', label: '关闭白噪音' },
+export const NOISE_MODES: Array<{ value: AmbientNoiseMode; label: string }> = [
+  { value: 'off', label: '白噪音 · 关闭' },
   { value: 'rain', label: '细雨声' },
   { value: 'pink', label: '柔和粉噪' },
   { value: 'brown', label: '暖壁炉低噪' },
 ];
 
+export const PHASE_COPY: Record<TimerPhase, { chip: string; eyebrow: string; idle: string }> = {
+  focus: { chip: '专注时段', eyebrow: 'Deep Focus', idle: '准备好就开始吧' },
+  shortBreak: { chip: '短暂休息', eyebrow: 'Short Break', idle: '起身喝口水' },
+  longBreak: { chip: '深度长休', eyebrow: 'Long Break', idle: '走一走，看看远方' },
+};
+
 export function TimerCard({ onEnterImmersive }: TimerCardProps) {
   const { state, updateSettings } = useAppData();
-  const { timerState, remainingSeconds, progress, toggle, reset, skipPhase, switchPhase, bindTask } =
-    useTimer();
+  const { timerState, remainingSeconds, progress, toggle, reset, skipPhase, switchPhase, bindTask } = useTimer();
 
   const isFocus = timerState.phase === 'focus';
+  const running = timerState.status === 'running';
   const accentColor = isFocus ? 'var(--accent-focus)' : 'var(--accent-break)';
   const accentSoft = isFocus ? 'var(--accent-focus-soft)' : 'var(--accent-break-soft)';
+  const copy = PHASE_COPY[timerState.phase];
   const activeTask = timerState.activeTaskId
     ? state.tasks.find((t) => t.id === timerState.activeTaskId)
     : undefined;
 
-  const radius = 104;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference * (1 - progress);
   const interval = Math.max(2, state.settings.longBreakInterval);
   const currentCycleIndex = timerState.completedFocusCycles % interval;
+  const volPct = Math.round(((state.settings.ambientVolume - 0.05) / 0.95) * 100);
 
   return (
-    <section
-      aria-label="番茄钟专注计时器"
-      className="paper-card flex flex-col items-center rounded-3xl p-6 sm:p-8"
-    >
+    <section aria-label="番茄钟专注计时器" className="paper-card overflow-hidden rounded-[28px]">
+      {/* phase wash */}
       <div
-        role="tablist"
-        aria-label="计时阶段"
-        className="inline-flex rounded-2xl bg-[var(--bg-subtle)] p-1"
-      >
-        {PHASE_TABS.map((tab) => {
-          const active = timerState.phase === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => switchPhase(tab.key)}
-              className={`focus-ring rounded-xl px-4 py-1.5 text-sm font-medium transition ${
-                active
-                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-56 transition-[background] duration-1000"
+        style={{
+          background: `radial-gradient(80% 100% at 50% 0%, color-mix(in srgb, ${accentColor} 12%, transparent), transparent 70%)`,
+        }}
+      />
 
-      <div className="relative my-7 flex h-60 w-60 items-center justify-center">
-        <svg className="h-full w-full -rotate-90" viewBox="0 0 240 240" aria-hidden="true">
-          <circle
-            cx="120"
-            cy="120"
-            r={radius}
-            fill="none"
-            stroke="var(--bg-subtle)"
-            strokeWidth="8"
-          />
-          <circle
-            cx="120"
-            cy="120"
-            r={radius}
-            fill="none"
-            stroke={accentColor}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashOffset}
-            className="transition-[stroke-dashoffset] duration-300 ease-out"
-          />
-        </svg>
+      <div className="relative flex flex-col items-center px-5 pt-5 pb-5 sm:px-7 sm:pt-6">
+        <div className="flex w-full items-center justify-between">
+          <span className="font-serif-italic text-[13px] text-[var(--text-muted)]">{copy.eyebrow}</span>
+          <button
+            type="button"
+            onClick={onEnterImmersive}
+            title="全屏沉浸模式 (F)"
+            aria-label="进入沉浸模式"
+            className="focus-ring icon-btn h-8 w-8"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
 
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <SegmentedControl
+          asTabs
+          size="md"
+          ariaLabel="计时阶段"
+          value={timerState.phase}
+          options={PHASE_TABS}
+          onChange={switchPhase}
+          className="mt-2"
+        />
+
+        <FocusDial
+          progress={progress}
+          isFocus={isFocus}
+          running={running}
+          className="my-6 h-[264px] w-[264px] sm:h-[288px] sm:w-[288px]"
+        >
           <span
-            className="rounded-full px-2.5 py-0.5 text-xs font-medium"
+            className="chip transition-colors duration-500"
             style={{ backgroundColor: accentSoft, color: accentColor }}
           >
-            {isFocus ? '专注时段' : timerState.phase === 'shortBreak' ? '短暂休息' : '深度长休'}
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${running ? 'animate-pulse' : ''}`}
+              style={{ backgroundColor: accentColor }}
+            />
+            {copy.chip}
           </span>
-          <div className="tabular-nums mt-2 text-5xl font-semibold tracking-tight sm:text-6xl">
+          <div
+            className="num-display mt-1.5 text-[60px] leading-none font-light text-[var(--text-primary)] sm:text-[68px]"
+            aria-live="off"
+          >
             {formatSecondsMMSS(remainingSeconds)}
           </div>
-          <div
-            className="mt-3 flex items-center gap-1.5"
-            aria-label={`本轮周期 ${currentCycleIndex}/${interval}`}
-          >
+          <div className="mt-3 flex items-center gap-1.5" aria-label={`本轮周期 ${currentCycleIndex}/${interval}`}>
             {Array.from({ length: interval }).map((_, idx) => (
               <span
                 key={idx}
-                className="h-2 w-2 rounded-full transition-colors"
+                className="h-1.5 rounded-full transition-all duration-500"
                 style={{
-                  backgroundColor:
-                    idx < currentCycleIndex ? accentColor : 'var(--border-strong)',
+                  width: idx < currentCycleIndex ? 14 : 6,
+                  backgroundColor: idx < currentCycleIndex ? accentColor : 'var(--border-strong)',
                 }}
               />
             ))}
           </div>
+          <span className="mt-2 text-[11px] text-[var(--text-muted)]">
+            {running
+              ? isFocus
+                ? `第 ${currentCycleIndex + 1} / ${interval} 颗番茄`
+                : '放松一下，马上回来'
+              : copy.idle}
+          </span>
+        </FocusDial>
+
+        {/* Bound task */}
+        <div className="mb-5 flex min-h-[40px] w-full items-center justify-center">
+          {activeTask ? (
+            <div className="animate-scale-in flex max-w-full items-center gap-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1.5 pr-1.5 pl-2 text-sm shadow-[var(--shadow-card)]">
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl"
+                style={{ backgroundColor: accentSoft, color: accentColor }}
+              >
+                <Target className="h-3.5 w-3.5" />
+              </span>
+              <span className="min-w-0 truncate font-medium">{activeTask.title}</span>
+              <span className="num-display shrink-0 rounded-lg bg-[var(--bg-subtle)] px-1.5 py-0.5 text-[11px] !tracking-normal text-[var(--text-secondary)]">
+                {activeTask.completedPomodoros}/{activeTask.estimatedPomodoros}
+              </span>
+              <button
+                type="button"
+                onClick={() => bindTask(null)}
+                aria-label="解除绑定任务"
+                className="focus-ring rounded-lg p-1 text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <p className="flex items-center gap-1.5 text-center text-xs text-[var(--text-muted)]">
+              点击计划任务上的
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-[var(--bg-subtle)] text-[var(--accent-focus)]">
+                <Play className="h-2.5 w-2.5 fill-current" />
+              </span>
+              绑定专注目标
+            </p>
+          )}
+        </div>
+
+        {/* Controls */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={reset}
+            title="重置计时 (R)"
+            aria-label="重置当前计时"
+            className="focus-ring icon-btn h-11 w-11 rounded-2xl"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={toggle}
+            data-tone={isFocus ? 'focus' : 'break'}
+            className="focus-ring btn-primary h-12 min-w-[156px] rounded-2xl px-6 text-[15px]"
+          >
+            {running ? (
+              <>
+                <Pause className="h-4 w-4 fill-current" />
+                暂停
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 fill-current" />
+                {timerState.status === 'paused' ? '继续' : isFocus ? '开始专注' : '开始休息'}
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={skipPhase}
+            title="跳过当前阶段"
+            aria-label="跳过当前阶段"
+            className="focus-ring icon-btn h-11 w-11 rounded-2xl"
+          >
+            <SkipForward className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
-      <div className="mb-6 flex w-full items-center justify-center">
-        {activeTask ? (
-          <div className="flex max-w-full items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-subtle)]/70 px-3.5 py-2 text-sm">
-            <Target className="h-4 w-4 shrink-0 text-[var(--accent-focus)]" />
-            <span className="truncate font-medium">{activeTask.title}</span>
-            <span className="tabular-nums shrink-0 text-xs text-[var(--text-muted)]">
-              {activeTask.completedPomodoros}/{activeTask.estimatedPomodoros}
-            </span>
-            <button
-              type="button"
-              onClick={() => bindTask(null)}
-              aria-label="解除绑定任务"
-              className="focus-ring ml-1 rounded-lg p-0.5 text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ) : (
-          <p className="text-center text-xs text-[var(--text-muted)]">
-            点击计划表中任务的 ▶ 按钮即可绑定专注目标
-          </p>
-        )}
-      </div>
-
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={reset}
-          title="重置计时 (R)"
-          aria-label="重置当前计时"
-          className="focus-ring flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
-        >
-          <RotateCcw className="h-4 w-4" />
-        </button>
-
-        <button
-          type="button"
-          onClick={toggle}
-          style={{ backgroundColor: accentColor }}
-          className="focus-ring flex h-12 min-w-[148px] items-center justify-center gap-2 rounded-2xl px-6 text-base font-medium text-white shadow-xs transition hover:opacity-95 active:scale-[0.98]"
-        >
-          {timerState.status === 'running' ? (
-            <>
-              <Pause className="h-4 w-4 fill-current" />
-              暂停
-            </>
-          ) : (
-            <>
-              <Play className="h-4 w-4 fill-current" />
-              {timerState.status === 'paused' ? '继续专注' : '开始专注'}
-            </>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={skipPhase}
-          title="跳过当前阶段"
-          aria-label="跳过当前阶段"
-          className="focus-ring flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
-        >
-          <SkipForward className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Ambient Sound & Fullscreen Immersive Bar */}
-      <div className="mt-6 flex w-full flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-4 text-xs">
-        <div className="flex items-center gap-2">
-          {state.settings.ambientNoise === 'off' ? (
-            <VolumeX className="h-4 w-4 text-[var(--text-muted)]" />
-          ) : (
-            <Volume2 className="h-4 w-4 text-[var(--accent-focus)]" />
-          )}
-          <select
+      {/* Ambient footer */}
+      <div className="relative flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--bg-subtle)_40%,transparent)] px-5 py-3 sm:px-7">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Dropdown
+            ariaLabel="环境白噪音选择"
             value={state.settings.ambientNoise}
-            onChange={(e) =>
-              updateSettings({ ambientNoise: e.target.value as AmbientNoiseMode })
+            options={NOISE_MODES}
+            onChange={(v) => updateSettings({ ambientNoise: v as AmbientNoiseMode })}
+            leading={
+              state.settings.ambientNoise === 'off' ? (
+                <VolumeX className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5 text-[var(--accent-focus)]" />
+              )
             }
-            aria-label="环境白噪音选择"
-            className="focus-ring rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--text-secondary)]"
-          >
-            {NOISE_MODES.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+          />
           {state.settings.ambientNoise !== 'off' && (
             <input
               type="range"
@@ -227,20 +226,14 @@ export function TimerCard({ onEnterImmersive }: TimerCardProps) {
               value={state.settings.ambientVolume}
               onChange={(e) => updateSettings({ ambientVolume: Number(e.target.value) })}
               aria-label="白噪音音量"
-              className="w-16 accent-[var(--accent-focus)]"
+              className="range animate-fade-in w-20"
+              style={{ ['--range-pct' as string]: `${volPct}%` }}
             />
           )}
         </div>
-
-        <button
-          type="button"
-          onClick={onEnterImmersive}
-          title="全屏沉浸模式 (F)"
-          className="focus-ring inline-flex items-center gap-1.5 rounded-xl bg-[var(--bg-subtle)] px-3 py-1.5 font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          <Maximize2 className="h-3.5 w-3.5" />
-          沉浸模式
-        </button>
+        <span className="hidden items-center gap-1 text-[11px] text-[var(--text-muted)] sm:inline-flex">
+          <kbd className="kbd">Space</kbd> 开始/暂停
+        </span>
       </div>
     </section>
   );

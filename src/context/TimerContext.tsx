@@ -25,6 +25,7 @@ import { useAppData } from './AppDataContext';
 interface TimerActionsContextValue {
   activeTaskId: string | null;
   status: PersistedTimerState['status'];
+  phase: TimerPhase;
   start: () => void;
   pause: () => void;
   toggle: () => void;
@@ -240,6 +241,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     () => ({
       activeTaskId: timerState.activeTaskId,
       status: timerState.status,
+      phase: timerState.phase,
       start,
       pause,
       toggle,
@@ -252,6 +254,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     [
       timerState.activeTaskId,
       timerState.status,
+      timerState.phase,
       start,
       pause,
       toggle,
