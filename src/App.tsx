@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AppDataProvider, useAppData } from './context/AppDataContext';
 import { TimerProvider, useTimer } from './context/TimerContext';
 import { Header, type ActiveTab } from './components/layout/Header';
+import { MobileNav } from './components/layout/MobileNav';
 import { UndoToast } from './components/layout/UndoToast';
 import { TimerCard } from './components/timer/TimerCard';
 import { ImmersiveOverlay } from './components/timer/ImmersiveOverlay';
@@ -164,6 +165,7 @@ function AppShell() {
       {immersive && <ImmersiveOverlay onClose={() => setImmersive(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+      <MobileNav activeTab={activeTab} onSelectTab={setActiveTab} />
       <UndoToast />
     </div>
   );
