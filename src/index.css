@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  --bg-canvas: #F8F6F1;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F1EDE4;
+  --bg-hover: #EAE4D8;
+  --border-subtle: #E6E0D4;
+  --border-strong: #D4CBBC;
+  --text-primary: #1F1D1A;
+  --text-secondary: #6B655B;
+  --text-muted: #9C9488;
+  --accent-focus: #D95338;
+  --accent-focus-hover: #C0432A;
+  --accent-focus-soft: #FDECE7;
+  --accent-break: #4D8B6F;
+  --accent-break-hover: #3D735B;
+  --accent-break-soft: #E8F3EE;
+  --shadow-card: 0 1px 2px rgba(31, 29, 26, 0.04), 0 6px 20px rgba(31, 29, 26, 0.03);
+  --shadow-elevated: 0 12px 32px rgba(31, 29, 26, 0.12);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg-canvas: #171614;
+  --bg-surface: #211F1C;
+  --bg-subtle: #2A2723;
+  --bg-hover: #332F2A;
+  --border-subtle: #35312B;
+  --border-strong: #474139;
+  --text-primary: #F2EFE9;
+  --text-secondary: #ACA59A;
+  --text-muted: #7C756C;
+  --accent-focus: #E86C52;
+  --accent-focus-hover: #F07B63;
+  --accent-focus-soft: rgba(232, 108, 82, 0.16);
+  --accent-break: #66A88A;
+  --accent-break-hover: #79BA9C;
+  --accent-break-soft: rgba(102, 168, 138, 0.16);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.2);
+  --shadow-elevated: 0 14px 36px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--accent-focus);
+  outline-offset: 2px;
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeSlideUp 200ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
