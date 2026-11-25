@@ -2,7 +2,8 @@
 
 一款**暖纸极简风格**的纯前端番茄钟与日程计划安排表应用，部署在 GitHub Pages 上，**免登录、开箱即用、离线可用**，每个人的计划与专注记录均安全保存在本地浏览器中并支持 JSON 一键备份。
 
-> **在线体验地址**：待部署完成后自动填入 `https://<your-username>.github.io/pomodoro-planner/`
+> **在线体验地址**：https://chenyanzou.github.io/pomodoro-planner/  
+> **GitHub 开源仓库**：https://github.com/chenyanzou/pomodoro-planner
 
 ## ✨ 核心亮点
 
