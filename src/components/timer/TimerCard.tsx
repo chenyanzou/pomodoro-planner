@@ -1,7 +1,21 @@
-import { Pause, Play, RotateCcw, SkipForward, Target, X } from 'lucide-react';
+import {
+  Maximize2,
+  Pause,
+  Play,
+  RotateCcw,
+  SkipForward,
+  Target,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 import { useAppData } from '../../context/AppDataContext';
 import { formatSecondsMMSS, useTimer } from '../../context/TimerContext';
-import type { TimerPhase } from '../../types';
+import type { AmbientNoiseMode, TimerPhase } from '../../types';
+
+interface TimerCardProps {
+  onEnterImmersive: () => void;
+}
 
 const PHASE_TABS: Array<{ key: TimerPhase; label: string }> = [
   { key: 'focus', label: '专注' },
@@ -9,8 +23,15 @@ const PHASE_TABS: Array<{ key: TimerPhase; label: string }> = [
   { key: 'longBreak', label: '长休' },
 ];
 
-export function TimerCard() {
-  const { state } = useAppData();
+const NOISE_MODES: Array<{ value: AmbientNoiseMode; label: string }> = [
+  { value: 'off', label: '关闭白噪音' },
+  { value: 'rain', label: '细雨声' },
+  { value: 'pink', label: '柔和粉噪' },
+  { value: 'brown', label: '暖壁炉低噪' },
+];
+
+export function TimerCard({ onEnterImmersive }: TimerCardProps) {
+  const { state, updateSettings } = useAppData();
   const { timerState, remainingSeconds, progress, toggle, reset, skipPhase, switchPhase, bindTask } =
     useTimer();
 
@@ -48,7 +69,7 @@ export function TimerCard() {
               onClick={() => switchPhase(tab.key)}
               className={`focus-ring rounded-xl px-4 py-1.5 text-sm font-medium transition ${
                 active
-                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs'
+                  ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
@@ -92,7 +113,10 @@ export function TimerCard() {
           <div className="tabular-nums mt-2 text-5xl font-semibold tracking-tight sm:text-6xl">
             {formatSecondsMMSS(remainingSeconds)}
           </div>
-          <div className="mt-3 flex items-center gap-1.5" aria-label={`本轮周期 ${currentCycleIndex}/${interval}`}>
+          <div
+            className="mt-3 flex items-center gap-1.5"
+            aria-label={`本轮周期 ${currentCycleIndex}/${interval}`}
+          >
             {Array.from({ length: interval }).map((_, idx) => (
               <span
                 key={idx}
@@ -125,8 +149,8 @@ export function TimerCard() {
             </button>
           </div>
         ) : (
-          <p className="text-xs text-[var(--text-muted)]">
-            点击右侧任务的「开始专注」按钮可绑定当前计划
+          <p className="text-center text-xs text-[var(--text-muted)]">
+            点击计划表中任务的 ▶ 按钮即可绑定专注目标
           </p>
         )}
       </div>
@@ -135,6 +159,7 @@ export function TimerCard() {
         <button
           type="button"
           onClick={reset}
+          title="重置计时 (R)"
           aria-label="重置当前计时"
           className="focus-ring flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
         >
@@ -145,7 +170,7 @@ export function TimerCard() {
           type="button"
           onClick={toggle}
           style={{ backgroundColor: accentColor }}
-          className="focus-ring flex h-12 min-w-[144px] items-center justify-center gap-2 rounded-2xl px-6 text-base font-medium text-white shadow-sm transition hover:opacity-95 active:scale-[0.98]"
+          className="focus-ring flex h-12 min-w-[148px] items-center justify-center gap-2 rounded-2xl px-6 text-base font-medium text-white shadow-xs transition hover:opacity-95 active:scale-[0.98]"
         >
           {timerState.status === 'running' ? (
             <>
@@ -163,10 +188,58 @@ export function TimerCard() {
         <button
           type="button"
           onClick={skipPhase}
+          title="跳过当前阶段"
           aria-label="跳过当前阶段"
           className="focus-ring flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
         >
           <SkipForward className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Ambient Sound & Fullscreen Immersive Bar */}
+      <div className="mt-6 flex w-full flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-4 text-xs">
+        <div className="flex items-center gap-2">
+          {state.settings.ambientNoise === 'off' ? (
+            <VolumeX className="h-4 w-4 text-[var(--text-muted)]" />
+          ) : (
+            <Volume2 className="h-4 w-4 text-[var(--accent-focus)]" />
+          )}
+          <select
+            value={state.settings.ambientNoise}
+            onChange={(e) =>
+              updateSettings({ ambientNoise: e.target.value as AmbientNoiseMode })
+            }
+            aria-label="环境白噪音选择"
+            className="focus-ring rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1.5 text-[var(--text-secondary)]"
+          >
+            {NOISE_MODES.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          {state.settings.ambientNoise !== 'off' && (
+            <input
+              type="range"
+              min={0.05}
+              max={1}
+              step={0.05}
+              value={state.settings.ambientVolume}
+              onChange={(e) => updateSettings({ ambientVolume: Number(e.target.value) })}
+              aria-label="白噪音音量"
+              className="w-16 accent-[var(--accent-focus)]"
+            />
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onEnterImmersive}
+          title="全屏沉浸模式 (F)"
+          className="focus-ring inline-flex items-center gap-1.5 rounded-xl bg-[var(--bg-subtle)] px-3 py-1.5 font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+        >
+          <Maximize2 className="h-3.5 w-3.5" />
+          沉浸模式
         </button>
       </div>
     </section>
