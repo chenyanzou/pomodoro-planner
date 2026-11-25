@@ -55,6 +55,14 @@ function getBrowserStorage(): Storage | null {
   }
 }
 
+function isLegacySampleId(id: string): boolean {
+  return (
+    id.startsWith('goal-sample-') ||
+    id.startsWith('task-sample-') ||
+    id.startsWith('sess-sample-')
+  );
+}
+
 export function loadAppState(storage?: StorageReader | null): PersistedAppState {
   const store = storage === undefined ? getBrowserStorage() : storage;
   if (!store) return createEmptyAppState();
@@ -72,12 +80,26 @@ export function loadAppState(storage?: StorageReader | null): PersistedAppState 
     ) {
       return createEmptyAppState();
     }
+
+    const goals = parsed.goals
+      .map(validateGoal)
+      .filter((g): g is Goal => g !== null && !isLegacySampleId(g.id));
+
+    const tasks = parsed.tasks
+      .map(validateTask)
+      .filter((t): t is Task => t !== null && !isLegacySampleId(t.id))
+      .map((t) => (t.goalId && isLegacySampleId(t.goalId) ? { ...t, goalId: undefined } : t));
+
+    const sessions = parsed.sessions
+      .map(validateSession)
+      .filter((s): s is FocusSession => s !== null && !isLegacySampleId(s.id));
+
     return {
       schemaVersion: 1,
       hasSampleData: false,
-      goals: parsed.goals.map(validateGoal).filter((g): g is Goal => g !== null),
-      tasks: parsed.tasks.map(validateTask).filter((t): t is Task => t !== null),
-      sessions: parsed.sessions.map(validateSession).filter((s): s is FocusSession => s !== null),
+      goals,
+      tasks,
+      sessions,
       settings: sanitizeSettings(parsed.settings),
     };
   } catch {

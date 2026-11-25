@@ -15,7 +15,7 @@
 
 ### 2. 不可逾越的核心红线
 1. **绝不破坏已锁定的核心业务逻辑与单测**：
-   - `src/utils/` 下的纯逻辑模块（`timerEngine.ts`、`date.ts`、`storage.ts`、`analytics.ts`、`backup.ts`、`reorder.ts`、`validators.ts`、`audioEngine.ts`）均已稳定且有 22 项 Vitest 单元测试保护，原则上只改 UI/样式/组件层；任何改动提交前必须确保 `npm run typecheck`、`npm test`（22/22 全绿）、`npm run build` 全部通过。
+   - `src/utils/` 下的纯逻辑模块（`timerEngine.ts`、`date.ts`、`storage.ts`、`analytics.ts`、`backup.ts`、`reorder.ts`、`validators.ts`、`audioEngine.ts`）均已稳定且有 23 项 Vitest 单元测试保护，原则上只改 UI/样式/组件层；任何改动提交前必须确保 `npm run typecheck`、`npm test`（23/23 全绿）、`npm run build` 全部通过。
 2. **保持静态纯前端与极致轻量化约束**：
    - 托管在 GitHub Pages（子路径 `/pomodoro-planner/`），严禁引入后端依赖；
    - **严禁引入数百 KB 的重型 UI/图表库**（不要引 AntD/MUI/ECharts/Chart.js，继续用 Tailwind CSS v4 + 自定义轻量 SVG + 精细 CSS 动效）；
@@ -33,12 +33,12 @@
 ## 二、当前 Git 状态与已锁定里程碑（严禁重做）
 
 - **当前分支**：`main`（已关联 `origin` = `git@github.com:chenyanzou/pomodoro-planner.git`）
-- **当前最新功能 Commit**：`96c3279`（Tag：`v1.0.1`）
+- **当前最新功能 Tag**：`v1.0.2`（`loadAppState` 已含旧版 `*-sample-*` 演示目标/任务/记录自动清理器，彻底保证三视图默认纯净空白）
 - **已锁定历史里程碑 Tags（已全部推送至 GitHub）**：
   - `v0.1`：防漂移番茄钟 + 基础今日任务清单 MVP（12 项单测）
   - `v0.3`：完整日排程、拖拽排序、目标拆解、懒加载 SVG 复盘统计、JSON 备份校验（18 项单测）
   - `v1.0`：Web Audio 纯合成钟声与 3 种白噪音、全屏沉浸模式、全局快捷键、移动端底部导航、PWA 离线预缓存、GitHub Actions 自动部署（22 项单测 + 浏览器实测全过）
-  - `v1.0.1`：改为默认纯净空白启动 + 顶栏小月亮旁内存隔离「演示 / 退出演示」按钮
+  - `v1.0.1` / `v1.0.2`：默认纯净空白启动 + 顶栏小月亮旁内存隔离「演示 / 退出演示」按钮 + 自动清理旧版 `localStorage` 残留演示目标与复盘记录（23 项单测全绿）
 - **自动部署机制**：推送到 `origin main` 后，`.github/workflows/deploy.yml` 会自动执行 `npm ci` → `npm test` → `npm run build` → 部署至 https://chenyanzou.github.io/pomodoro-planner/（约 45 秒生效）。
 
 ---

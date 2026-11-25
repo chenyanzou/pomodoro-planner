@@ -124,4 +124,37 @@ describe('storage and deletion contracts', () => {
     expect(loaded.sessions).toHaveLength(1);
     expect(loaded.sessions[0].id).toBe('s2');
   });
+
+  it('auto-purges legacy v1.0 sample goals, tasks, and sessions from localStorage while preserving real user data', () => {
+    const legacySample = createSampleAppState();
+    const realTask = {
+      id: 'task-real-1',
+      title: '用户自己创建的真实任务',
+      date: '2026-11-25',
+      timeSlot: 'morning' as const,
+      priority: 'high' as const,
+      goalId: 'goal-sample-study',
+      estimatedPomodoros: 2,
+      completedPomodoros: 0,
+      completed: false,
+      order: 0,
+      createdAt: 100,
+      updatedAt: 100,
+    };
+
+    const legacyStorage = makeMemoryStorage({
+      [STATE_STORAGE_KEY]: JSON.stringify({
+        ...legacySample,
+        hasSampleData: false,
+        tasks: [...legacySample.tasks, realTask],
+      }),
+    });
+
+    const loaded = loadAppState(legacyStorage);
+    expect(loaded.goals).toEqual([]);
+    expect(loaded.sessions).toEqual([]);
+    expect(loaded.tasks).toHaveLength(1);
+    expect(loaded.tasks[0].id).toBe('task-real-1');
+    expect(loaded.tasks[0].goalId).toBeUndefined();
+  });
 });
