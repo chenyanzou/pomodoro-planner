@@ -148,7 +148,8 @@ function AppShell() {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden pb-24 text-[var(--text-primary)] md:pb-10">
+    <div className="relative min-h-screen overflow-x-hidden pb-24 text-[var(--text-primary)] md:pb-10">
+      <div aria-hidden="true" className="cinema-vignette" />
       <Header
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -186,7 +187,7 @@ function AppShell() {
           <div className="min-w-0 lg:col-span-5 lg:sticky lg:top-24">
             <TimerCard onEnterImmersive={() => setImmersive(true)} />
           </div>
-          <div className="min-w-0 lg:col-span-7">
+          <div className="cinema-companion min-w-0 lg:col-span-7">
             <SchedulePanel
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}

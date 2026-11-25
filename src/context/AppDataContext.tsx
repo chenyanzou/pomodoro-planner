@@ -144,7 +144,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       document.documentElement.dataset.theme = resolved;
       const meta = document.querySelector('meta[name="theme-color"]');
       if (meta) {
-        meta.setAttribute('content', resolved === 'dark' ? '#171614' : '#F8F6F1');
+        meta.setAttribute('content', resolved === 'dark' ? '#12110F' : '#E6DAC8');
       }
     };
 

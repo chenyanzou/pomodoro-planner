@@ -47,27 +47,43 @@ export function TimerCard({ onEnterImmersive }: TimerCardProps) {
   const volPct = Math.round(((state.settings.ambientVolume - 0.05) / 0.95) * 100);
 
   return (
-    <section aria-label="番茄钟专注计时器" className="paper-card overflow-hidden rounded-[28px]">
+    <section aria-label="番茄钟专注计时器" className="paper-card cinema-stage overflow-hidden rounded-[28px]">
+      {/* Subtle 35mm viewfinder corner hairlines (light mode only) */}
+      <span aria-hidden="true" className="cinema-corner top-3 left-3 rounded-tl-[4px] border-t border-l" />
+      <span aria-hidden="true" className="cinema-corner top-3 right-3 rounded-tr-[4px] border-t border-r" />
+      <span aria-hidden="true" className="cinema-corner bottom-3 left-3 rounded-bl-[4px] border-b border-l" />
+      <span aria-hidden="true" className="cinema-corner right-3 bottom-3 rounded-br-[4px] border-r border-b" />
+
       {/* phase wash */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-56 transition-[background] duration-1000"
+        className="pointer-events-none absolute inset-x-0 top-0 h-64 transition-[background] duration-1000"
         style={{
-          background: `radial-gradient(80% 100% at 50% 0%, color-mix(in srgb, ${accentColor} 12%, transparent), transparent 70%)`,
+          background: `radial-gradient(85% 100% at 50% -6%, color-mix(in srgb, ${accentColor} 18%, transparent), transparent 72%)`,
         }}
       />
 
       <div className="relative flex flex-col items-center px-5 pt-5 pb-5 sm:px-7 sm:pt-6">
         <div className="flex w-full items-center justify-between">
-          <span className="font-serif-italic text-[13px] text-[var(--text-muted)]">{copy.eyebrow}</span>
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className={`h-1.5 w-1.5 rounded-full transition-colors ${running ? 'animate-pulse' : ''}`}
+              style={{ backgroundColor: accentColor }}
+            />
+            <span className="eyebrow text-[10px]">REEL 0{currentCycleIndex + 1}</span>
+            <span className="text-[var(--border-strong)]">·</span>
+            <span className="font-serif-italic text-[13px] text-[var(--text-muted)]">{copy.eyebrow}</span>
+          </div>
           <button
             type="button"
             onClick={onEnterImmersive}
             title="全屏沉浸模式 (F)"
             aria-label="进入沉浸模式"
-            className="focus-ring icon-btn h-8 w-8"
+            className="focus-ring btn-soft h-8 px-2.5 text-[11.5px]"
           >
             <Maximize2 className="h-3.5 w-3.5" />
+            <span>影院沉浸</span>
           </button>
         </div>
 
