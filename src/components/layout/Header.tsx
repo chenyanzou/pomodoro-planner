@@ -1,4 +1,4 @@
-import { BarChart3, Clock3, Keyboard, Moon, Settings, Sun, Target } from 'lucide-react';
+import { BarChart3, Clock3, Keyboard, Moon, Settings, Sparkles, Sun, Target, X } from 'lucide-react';
 import { useAppData } from '../../context/AppDataContext';
 
 export type ActiveTab = 'focus' | 'goals' | 'analytics';
@@ -22,7 +22,7 @@ export function Header({
   onOpenSettings,
   onOpenShortcuts,
 }: HeaderProps) {
-  const { state, updateSettings } = useAppData();
+  const { state, isDemoMode, toggleDemoMode, updateSettings } = useAppData();
   const isDark =
     state.settings.theme === 'dark' ||
     (state.settings.theme === 'system' &&
@@ -89,6 +89,35 @@ export function Header({
               <Keyboard className="h-4 w-4" />
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={toggleDemoMode}
+            title={
+              isDemoMode
+                ? '退出演示模式并恢复个人数据'
+                : '进入演示模式（预览完整示例数据，不影响个人数据）'
+            }
+            aria-pressed={isDemoMode}
+            className={`focus-ring inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition ${
+              isDemoMode
+                ? 'border-[var(--accent-focus)] bg-[var(--accent-focus)] text-white hover:bg-[var(--accent-focus-hover)]'
+                : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {isDemoMode ? (
+              <>
+                <X className="h-3.5 w-3.5" />
+                <span>退出演示</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3.5 w-3.5 text-[var(--accent-focus)]" />
+                <span>演示</span>
+              </>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={toggleTheme}
@@ -98,6 +127,7 @@ export function Header({
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
+
           {onOpenSettings && (
             <button
               type="button"

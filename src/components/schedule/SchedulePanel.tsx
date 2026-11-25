@@ -5,7 +5,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Sparkles,
 } from 'lucide-react';
 import { useAppData } from '../../context/AppDataContext';
 import { useTimerActions } from '../../context/TimerContext';
@@ -48,7 +47,6 @@ export function SchedulePanel({
     toggleTaskComplete,
     reorderTasks,
     rolloverUnfinishedTasks,
-    clearSampleData,
   } = useAppData();
   const { activeTaskId, bindTask } = useTimerActions();
 
@@ -220,16 +218,6 @@ export function SchedulePanel({
             >
               <ArrowRightCircle className="h-3.5 w-3.5 text-[var(--accent-focus)]" />
               {rolloverLabel}
-            </button>
-          )}
-          {state.hasSampleData && (
-            <button
-              type="button"
-              onClick={clearSampleData}
-              className="focus-ring inline-flex items-center gap-1 rounded-xl bg-[var(--bg-subtle)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-[var(--accent-focus)]" />
-              清空演示数据
             </button>
           )}
         </div>

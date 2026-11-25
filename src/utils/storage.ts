@@ -1,5 +1,5 @@
 import type { AppSettings, FocusSession, Goal, PersistedAppState, PersistedTimerState, Task, TimerPhase } from '../types';
-import { createSampleAppState, DEFAULT_SETTINGS } from './seedData';
+import { createEmptyAppState, DEFAULT_SETTINGS } from './seedData';
 import { createInitialTimerState, getPhaseDurationSeconds } from './timerEngine';
 import { validateGoal, validateSession, validateTask } from './validators';
 
@@ -57,11 +57,11 @@ function getBrowserStorage(): Storage | null {
 
 export function loadAppState(storage?: StorageReader | null): PersistedAppState {
   const store = storage === undefined ? getBrowserStorage() : storage;
-  if (!store) return createSampleAppState();
+  if (!store) return createEmptyAppState();
 
   try {
     const raw = store.getItem(STATE_STORAGE_KEY);
-    if (!raw) return createSampleAppState();
+    if (!raw) return createEmptyAppState();
     const parsed = JSON.parse(raw) as Partial<PersistedAppState>;
     if (
       !parsed ||
@@ -70,18 +70,18 @@ export function loadAppState(storage?: StorageReader | null): PersistedAppState 
       !Array.isArray(parsed.tasks) ||
       !Array.isArray(parsed.sessions)
     ) {
-      return createSampleAppState();
+      return createEmptyAppState();
     }
     return {
       schemaVersion: 1,
-      hasSampleData: Boolean(parsed.hasSampleData),
+      hasSampleData: false,
       goals: parsed.goals.map(validateGoal).filter((g): g is Goal => g !== null),
       tasks: parsed.tasks.map(validateTask).filter((t): t is Task => t !== null),
       sessions: parsed.sessions.map(validateSession).filter((s): s is FocusSession => s !== null),
       settings: sanitizeSettings(parsed.settings),
     };
   } catch {
-    return createSampleAppState();
+    return createEmptyAppState();
   }
 }
 

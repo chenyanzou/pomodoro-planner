@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createSampleAppState } from '../src/utils/seedData';
 import {
   DEFAULT_SETTINGS,
   STATE_STORAGE_KEY,
@@ -20,7 +21,14 @@ function makeMemoryStorage(initial: Record<string, string> = {}) {
 }
 
 describe('storage and deletion contracts', () => {
-  it('recovers gracefully from corrupted JSON in localStorage without throwing', () => {
+  it('boots with a clean empty workspace on first visit and recovers gracefully from corrupted JSON', () => {
+    const emptyState = loadAppState(makeMemoryStorage());
+    expect(emptyState.schemaVersion).toBe(1);
+    expect(emptyState.hasSampleData).toBe(false);
+    expect(emptyState.goals).toEqual([]);
+    expect(emptyState.tasks).toEqual([]);
+    expect(emptyState.sessions).toEqual([]);
+
     const brokenStorage = makeMemoryStorage({
       [STATE_STORAGE_KEY]: '{not valid json',
       [TIMER_STORAGE_KEY]: '%%%broken',
@@ -28,9 +36,10 @@ describe('storage and deletion contracts', () => {
 
     const appState = loadAppState(brokenStorage);
     expect(appState.schemaVersion).toBe(1);
-    expect(appState.hasSampleData).toBe(true);
-    expect(appState.goals.length).toBeGreaterThan(0);
-    expect(appState.tasks.length).toBeGreaterThan(0);
+    expect(appState.hasSampleData).toBe(false);
+    expect(appState.goals).toEqual([]);
+    expect(appState.tasks).toEqual([]);
+    expect(appState.sessions).toEqual([]);
 
     const timerState = loadTimerState(DEFAULT_SETTINGS, brokenStorage);
     expect(timerState.phase).toBe('focus');
@@ -39,7 +48,7 @@ describe('storage and deletion contracts', () => {
   });
 
   it('preserves FocusSession snapshots and linked tasks when a goal is deleted', () => {
-    const state = loadAppState(makeMemoryStorage());
+    const state = createSampleAppState();
     const goalId = state.goals[0].id;
     const beforeTaskCount = state.tasks.length;
     const beforeSessionCount = state.sessions.length;
@@ -56,7 +65,7 @@ describe('storage and deletion contracts', () => {
   });
 
   it('removes a task while preserving historical FocusSession snapshots', () => {
-    const state = loadAppState(makeMemoryStorage());
+    const state = createSampleAppState();
     const targetTask = state.tasks[0];
     const next = applyDeleteTask(state, targetTask.id);
     expect(next.tasks.some((t) => t.id === targetTask.id)).toBe(false);
@@ -68,29 +77,41 @@ describe('storage and deletion contracts', () => {
       [STATE_STORAGE_KEY]: JSON.stringify({
         schemaVersion: 1,
         hasSampleData: false,
-        goals: [null, { id: 'g1', title: '有效目标', color: '#D95338', targetPomodoros: 5, archived: false, createdAt: 1 }, { broken: true }],
-        tasks: [null, { id: 't1', title: '坏任务', date: 'invalid-date' }, {
-          id: 't2',
-          title: '有效任务',
-          date: '2026-11-24',
-          timeSlot: 'morning',
-          priority: 'high',
-          estimatedPomodoros: 2,
-          completedPomodoros: 0,
-          completed: false,
-          order: 0,
-          createdAt: 1,
-          updatedAt: 1,
-        }],
-        sessions: [null, { id: 's1', durationMinutes: -5 }, {
-          id: 's2',
-          taskTitleSnapshot: '有效记录',
-          phase: 'focus',
-          durationMinutes: 25,
-          date: '2026-11-24',
-          startedAt: 1,
-          endedAt: 2,
-        }],
+        goals: [
+          null,
+          { id: 'g1', title: '有效目标', color: '#D95338', targetPomodoros: 5, archived: false, createdAt: 1 },
+          { broken: true },
+        ],
+        tasks: [
+          null,
+          { id: 't1', title: '坏任务', date: 'invalid-date' },
+          {
+            id: 't2',
+            title: '有效任务',
+            date: '2026-11-24',
+            timeSlot: 'morning',
+            priority: 'high',
+            estimatedPomodoros: 2,
+            completedPomodoros: 0,
+            completed: false,
+            order: 0,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+        sessions: [
+          null,
+          { id: 's1', durationMinutes: -5 },
+          {
+            id: 's2',
+            taskTitleSnapshot: '有效记录',
+            phase: 'focus',
+            durationMinutes: 25,
+            date: '2026-11-24',
+            startedAt: 1,
+            endedAt: 2,
+          },
+        ],
         settings: {},
       }),
     });

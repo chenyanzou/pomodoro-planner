@@ -34,7 +34,7 @@ function isEditableOrInteractive(target: EventTarget | null, code: string): bool
 }
 
 function AppShell() {
-  const { state } = useAppData();
+  const { state, isDemoMode, exitDemoMode } = useAppData();
   const { toggle, reset, registerPhaseCompleteListener } = useTimerActions();
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('focus');
@@ -147,6 +147,21 @@ function AppShell() {
         onOpenSettings={() => setShowSettings(true)}
         onOpenShortcuts={() => setShowShortcuts(true)}
       />
+
+      {isDemoMode && (
+        <div className="border-b border-[var(--accent-focus)]/25 bg-[var(--accent-focus-soft)]/80 px-4 py-2 text-center text-xs text-[var(--text-primary)]">
+          <span>
+            当前处于 <strong>演示模式</strong>：展示内置示例数据，可自由操作体验，退出后自动恢复你的个人本地数据。
+          </span>
+          <button
+            type="button"
+            onClick={exitDemoMode}
+            className="focus-ring ml-2.5 inline-flex items-center rounded-lg bg-[var(--accent-focus)] px-2.5 py-0.5 text-[11px] font-medium text-white hover:bg-[var(--accent-focus-hover)]"
+          >
+            退出演示
+          </button>
+        </div>
+      )}
 
       {activeTab === 'focus' && (
         <main className="mx-auto grid max-w-6xl gap-6 px-3.5 py-5 sm:px-6 sm:py-6 lg:grid-cols-12 lg:items-start">

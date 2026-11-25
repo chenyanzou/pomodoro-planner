@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Bell, Download, RotateCcw, Trash2, Upload, Volume2, X } from 'lucide-react';
+import { Bell, Download, Sparkles, Trash2, Upload, Volume2, X } from 'lucide-react';
 import { useAppData } from '../../context/AppDataContext';
 import type { ThemeMode } from '../../types';
 import { playCompletionChime } from '../../utils/audioEngine';
@@ -13,9 +13,10 @@ interface SettingsModalProps {
 export function SettingsModal({ onClose }: SettingsModalProps) {
   const {
     state,
+    isDemoMode,
+    toggleDemoMode,
     updateSettings,
     replaceAllData,
-    resetToSampleData,
     clearAllData,
     showToast,
   } = useAppData();
@@ -291,13 +292,13 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               <button
                 type="button"
                 onClick={() => {
-                  resetToSampleData();
+                  toggleDemoMode();
                   onClose();
                 }}
                 className="focus-ring inline-flex items-center gap-1.5 rounded-xl border border-[var(--border-subtle)] px-3 py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-subtle)]"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
-                恢复演示数据
+                <Sparkles className="h-3.5 w-3.5 text-[var(--accent-focus)]" />
+                {isDemoMode ? '退出演示模式' : '进入演示模式'}
               </button>
             </div>
 

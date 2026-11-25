@@ -64,6 +64,9 @@ export interface ManualSessionInput {
 
 interface AppDataContextValue {
   state: PersistedAppState;
+  isDemoMode: boolean;
+  toggleDemoMode: () => void;
+  exitDemoMode: () => void;
   toast: ToastMessage | null;
   showToast: (text: string, undoAction?: { label: string; onUndo: () => void }) => void;
   dismissToast: () => void;
@@ -86,8 +89,6 @@ interface AppDataContextValue {
   deleteFocusSession: (id: string) => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
   replaceAllData: (nextState: PersistedAppState) => void;
-  clearSampleData: () => void;
-  resetToSampleData: () => void;
   clearAllData: () => void;
 }
 
@@ -101,16 +102,35 @@ function uid(prefix: string): string {
 }
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PersistedAppState>(() => loadAppState());
+  const [realState, setRealState] = useState<PersistedAppState>(() => loadAppState());
+  const [demoState, setDemoState] = useState<PersistedAppState | null>(null);
+
+  const isDemoMode = demoState !== null;
+  const state = demoState ?? realState;
+
   const stateRef = useRef<PersistedAppState>(state);
   stateRef.current = state;
+  const isDemoRef = useRef<boolean>(isDemoMode);
+  isDemoRef.current = isDemoMode;
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const toastTimerRef = useRef<number | null>(null);
 
+  // Only persist real user data; Demo Mode stays isolated in memory and never overwrites localStorage
   useEffect(() => {
-    saveAppState(state);
-  }, [state]);
+    saveAppState(realState);
+  }, [realState]);
+
+  const updateActiveState = useCallback(
+    (updater: (prev: PersistedAppState) => PersistedAppState) => {
+      if (isDemoRef.current) {
+        setDemoState((prev) => (prev ? updater(prev) : prev));
+      } else {
+        setRealState(updater);
+      }
+    },
+    [],
+  );
 
   // Apply light / dark / system theme to <html> and meta[name="theme-color"]
   useEffect(() => {
@@ -163,73 +183,98 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const addTask = useCallback((input: AddTaskInput): Task => {
-    const now = Date.now();
-    const safeDate = isValidDateKey(input.date) ? input.date : toLocalDateKey(now);
-    const sameDayMaxOrder = stateRef.current.tasks
-      .filter((t) => t.date === safeDate)
-      .reduce((max, t) => Math.max(max, t.order), -1);
+  const exitDemoMode = useCallback(() => {
+    if (!isDemoRef.current) return;
+    setDemoState(null);
+    showToast('已退出演示模式，恢复你的个人工作区');
+  }, [showToast]);
 
-    const created: Task = {
-      id: uid('task'),
-      title: input.title.trim(),
-      note: input.note?.trim() || undefined,
-      date: safeDate,
-      timeSlot: input.timeSlot,
-      priority: input.priority,
-      goalId: input.goalId || undefined,
-      estimatedPomodoros: Math.max(1, Math.min(16, Math.round(input.estimatedPomodoros))),
-      completedPomodoros: 0,
-      completed: false,
-      order: sameDayMaxOrder + 1,
-      createdAt: now,
-      updatedAt: now,
-    };
+  const toggleDemoMode = useCallback(() => {
+    if (isDemoRef.current) {
+      setDemoState(null);
+      showToast('已退出演示模式，恢复你的个人工作区');
+    } else {
+      const sample = createSampleAppState();
+      setDemoState({
+        ...sample,
+        settings: { ...stateRef.current.settings },
+      });
+      showToast('已进入演示模式（体验修改不会覆盖你的本地数据）');
+    }
+  }, [showToast]);
 
-    setState((prev) => ({
-      ...prev,
-      hasSampleData: false,
-      tasks: [...prev.tasks, created],
-    }));
-    return created;
-  }, []);
+  const addTask = useCallback(
+    (input: AddTaskInput): Task => {
+      const now = Date.now();
+      const safeDate = isValidDateKey(input.date) ? input.date : toLocalDateKey(now);
+      const sameDayMaxOrder = stateRef.current.tasks
+        .filter((t) => t.date === safeDate)
+        .reduce((max, t) => Math.max(max, t.order), -1);
 
-  const updateTask = useCallback((id: string, patch: Partial<Omit<Task, 'id' | 'createdAt'>>) => {
-    setState((prev) => ({
-      ...prev,
-      tasks: prev.tasks.map((task) => {
-        if (task.id !== id) return task;
-        const safeDate =
-          patch.date !== undefined && isValidDateKey(patch.date) ? patch.date : task.date;
-        return {
-          ...task,
-          ...patch,
-          date: safeDate,
-          title: patch.title !== undefined ? patch.title.trim() || task.title : task.title,
-          estimatedPomodoros:
-            patch.estimatedPomodoros !== undefined
-              ? Math.max(1, Math.min(16, Math.round(patch.estimatedPomodoros)))
-              : task.estimatedPomodoros,
-          completedPomodoros:
-            patch.completedPomodoros !== undefined
-              ? Math.max(0, Math.round(patch.completedPomodoros))
-              : task.completedPomodoros,
-          updatedAt: Date.now(),
-        };
-      }),
-    }));
-  }, []);
+      const created: Task = {
+        id: uid('task'),
+        title: input.title.trim(),
+        note: input.note?.trim() || undefined,
+        date: safeDate,
+        timeSlot: input.timeSlot,
+        priority: input.priority,
+        goalId: input.goalId || undefined,
+        estimatedPomodoros: Math.max(1, Math.min(16, Math.round(input.estimatedPomodoros))),
+        completedPomodoros: 0,
+        completed: false,
+        order: sameDayMaxOrder + 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      updateActiveState((prev) => ({
+        ...prev,
+        tasks: [...prev.tasks, created],
+      }));
+      return created;
+    },
+    [updateActiveState],
+  );
+
+  const updateTask = useCallback(
+    (id: string, patch: Partial<Omit<Task, 'id' | 'createdAt'>>) => {
+      updateActiveState((prev) => ({
+        ...prev,
+        tasks: prev.tasks.map((task) => {
+          if (task.id !== id) return task;
+          const safeDate =
+            patch.date !== undefined && isValidDateKey(patch.date) ? patch.date : task.date;
+          return {
+            ...task,
+            ...patch,
+            date: safeDate,
+            title: patch.title !== undefined ? patch.title.trim() || task.title : task.title,
+            estimatedPomodoros:
+              patch.estimatedPomodoros !== undefined
+                ? Math.max(1, Math.min(16, Math.round(patch.estimatedPomodoros)))
+                : task.estimatedPomodoros,
+            completedPomodoros:
+              patch.completedPomodoros !== undefined
+                ? Math.max(0, Math.round(patch.completedPomodoros))
+                : task.completedPomodoros,
+            updatedAt: Date.now(),
+          };
+        }),
+      }));
+    },
+    [updateActiveState],
+  );
 
   const deleteTask = useCallback(
     (id: string) => {
       const snapshot = stateRef.current.tasks.find((t) => t.id === id);
       if (!snapshot) return;
 
-      setState((prev) => applyDeleteTask(prev, id));
+      updateActiveState((prev) => applyDeleteTask(prev, id));
       showToast(`已删除任务「${snapshot.title}」`, {
         label: '撤销',
         onUndo: () => {
-          setState((prev) => {
+          updateActiveState((prev) => {
             if (prev.tasks.some((t) => t.id === snapshot.id)) return prev;
             return { ...prev, tasks: [...prev.tasks, snapshot] };
           });
@@ -237,23 +282,26 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         },
       });
     },
-    [dismissToast, showToast],
+    [dismissToast, showToast, updateActiveState],
   );
 
-  const toggleTaskComplete = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      tasks: prev.tasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed, updatedAt: Date.now() } : task,
-      ),
-    }));
-  }, []);
+  const toggleTaskComplete = useCallback(
+    (id: string) => {
+      updateActiveState((prev) => ({
+        ...prev,
+        tasks: prev.tasks.map((task) =>
+          task.id === id ? { ...task, completed: !task.completed, updatedAt: Date.now() } : task,
+        ),
+      }));
+    },
+    [updateActiveState],
+  );
 
   const reorderTasks = useCallback(
     (date: string, orderedTaskIds: string[], updatedSlotMap?: Record<string, TimeSlot>) => {
       const orderIndex = new Map<string, number>();
       orderedTaskIds.forEach((id, idx) => orderIndex.set(id, idx));
-      setState((prev) => {
+      updateActiveState((prev) => {
         let changed = false;
         const nextTasks = prev.tasks.map((task) => {
           if (task.date !== date) return task;
@@ -272,7 +320,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         return changed ? { ...prev, tasks: nextTasks } : prev;
       });
     },
-    [],
+    [updateActiveState],
   );
 
   const rolloverUnfinishedTasks = useCallback(
@@ -283,7 +331,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       if (toMove.length === 0) return 0;
 
       const moveIds = new Set(toMove.map((t) => t.id));
-      setState((prev) => {
+      updateActiveState((prev) => {
         let maxOrder = prev.tasks
           .filter((t) => t.date === targetDate)
           .reduce((max, t) => Math.max(max, t.order), -1);
@@ -303,113 +351,124 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       );
       return toMove.length;
     },
-    [showToast],
+    [showToast, updateActiveState],
   );
 
-  const addGoal = useCallback((input: AddGoalInput): Goal => {
-    const goal: Goal = {
-      id: uid('goal'),
-      title: input.title.trim(),
-      description: input.description?.trim() || undefined,
-      color: input.color,
-      targetPomodoros: Math.max(1, Math.min(999, Math.round(input.targetPomodoros))),
-      deadline: input.deadline && isValidDateKey(input.deadline) ? input.deadline : undefined,
-      archived: false,
-      createdAt: Date.now(),
-    };
-    setState((prev) => ({
-      ...prev,
-      hasSampleData: false,
-      goals: [goal, ...prev.goals],
-    }));
-    return goal;
-  }, []);
+  const addGoal = useCallback(
+    (input: AddGoalInput): Goal => {
+      const goal: Goal = {
+        id: uid('goal'),
+        title: input.title.trim(),
+        description: input.description?.trim() || undefined,
+        color: input.color,
+        targetPomodoros: Math.max(1, Math.min(999, Math.round(input.targetPomodoros))),
+        deadline: input.deadline && isValidDateKey(input.deadline) ? input.deadline : undefined,
+        archived: false,
+        createdAt: Date.now(),
+      };
+      updateActiveState((prev) => ({
+        ...prev,
+        goals: [goal, ...prev.goals],
+      }));
+      return goal;
+    },
+    [updateActiveState],
+  );
 
-  const updateGoal = useCallback((id: string, patch: Partial<Omit<Goal, 'id' | 'createdAt'>>) => {
-    setState((prev) => ({
-      ...prev,
-      goals: prev.goals.map((g) =>
-        g.id === id
-          ? {
-              ...g,
-              ...patch,
-              title: patch.title !== undefined ? patch.title.trim() || g.title : g.title,
-              deadline:
-                patch.deadline !== undefined
-                  ? patch.deadline && isValidDateKey(patch.deadline)
-                    ? patch.deadline
-                    : undefined
-                  : g.deadline,
-              targetPomodoros:
-                patch.targetPomodoros !== undefined
-                  ? Math.max(1, Math.min(999, Math.round(patch.targetPomodoros)))
-                  : g.targetPomodoros,
-            }
-          : g,
-      ),
-    }));
-  }, []);
+  const updateGoal = useCallback(
+    (id: string, patch: Partial<Omit<Goal, 'id' | 'createdAt'>>) => {
+      updateActiveState((prev) => ({
+        ...prev,
+        goals: prev.goals.map((g) =>
+          g.id === id
+            ? {
+                ...g,
+                ...patch,
+                title: patch.title !== undefined ? patch.title.trim() || g.title : g.title,
+                deadline:
+                  patch.deadline !== undefined
+                    ? patch.deadline && isValidDateKey(patch.deadline)
+                      ? patch.deadline
+                      : undefined
+                    : g.deadline,
+                targetPomodoros:
+                  patch.targetPomodoros !== undefined
+                    ? Math.max(1, Math.min(999, Math.round(patch.targetPomodoros)))
+                    : g.targetPomodoros,
+              }
+            : g,
+        ),
+      }));
+    },
+    [updateActiveState],
+  );
 
   const deleteGoal = useCallback(
     (id: string) => {
       const target = stateRef.current.goals.find((g) => g.id === id);
       if (!target) return;
-      setState((prev) => applyDeleteGoal(prev, id));
+      updateActiveState((prev) => applyDeleteGoal(prev, id));
       showToast(`已删除目标「${target.title}」，历史任务与专注记录已保留`);
     },
-    [showToast],
+    [showToast, updateActiveState],
   );
 
-  const toggleGoalArchive = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      goals: prev.goals.map((g) => (g.id === id ? { ...g, archived: !g.archived } : g)),
-    }));
-  }, []);
-
-  const completeBoundFocusSession = useCallback((payload: CompletedFocusPayload) => {
-    setState((prev) => {
-      const boundTask = payload.taskId ? prev.tasks.find((t) => t.id === payload.taskId) : undefined;
-      const boundGoal = boundTask?.goalId
-        ? prev.goals.find((g) => g.id === boundTask.goalId)
-        : undefined;
-
-      const session: FocusSession = {
-        id: uid('sess'),
-        taskId: boundTask?.id,
-        taskTitleSnapshot: boundTask?.title ?? '自由专注',
-        goalId: boundGoal?.id,
-        goalTitleSnapshot: boundGoal?.title,
-        goalColorSnapshot: boundGoal?.color,
-        phase: 'focus',
-        durationMinutes: payload.durationMinutes,
-        date: toLocalDateKey(payload.endedAt),
-        startedAt: payload.startedAt,
-        endedAt: payload.endedAt,
-      };
-
-      const nextTasks = boundTask
-        ? prev.tasks.map((t) =>
-            t.id === boundTask.id
-              ? { ...t, completedPomodoros: t.completedPomodoros + 1, updatedAt: Date.now() }
-              : t,
-          )
-        : prev.tasks;
-
-      return {
+  const toggleGoalArchive = useCallback(
+    (id: string) => {
+      updateActiveState((prev) => ({
         ...prev,
-        tasks: nextTasks,
-        sessions: [session, ...prev.sessions],
-      };
-    });
-  }, []);
+        goals: prev.goals.map((g) => (g.id === id ? { ...g, archived: !g.archived } : g)),
+      }));
+    },
+    [updateActiveState],
+  );
+
+  const completeBoundFocusSession = useCallback(
+    (payload: CompletedFocusPayload) => {
+      updateActiveState((prev) => {
+        const boundTask = payload.taskId ? prev.tasks.find((t) => t.id === payload.taskId) : undefined;
+        const boundGoal = boundTask?.goalId
+          ? prev.goals.find((g) => g.id === boundTask.goalId)
+          : undefined;
+
+        const session: FocusSession = {
+          id: uid('sess'),
+          taskId: boundTask?.id,
+          taskTitleSnapshot: boundTask?.title ?? '自由专注',
+          goalId: boundGoal?.id,
+          goalTitleSnapshot: boundGoal?.title,
+          goalColorSnapshot: boundGoal?.color,
+          phase: 'focus',
+          durationMinutes: payload.durationMinutes,
+          date: toLocalDateKey(payload.endedAt),
+          startedAt: payload.startedAt,
+          endedAt: payload.endedAt,
+        };
+
+        const nextTasks = boundTask
+          ? prev.tasks.map((t) =>
+              t.id === boundTask.id
+                ? { ...t, completedPomodoros: t.completedPomodoros + 1, updatedAt: Date.now() }
+                : t,
+            )
+          : prev.tasks;
+
+        return {
+          ...prev,
+          tasks: nextTasks,
+          sessions: [session, ...prev.sessions],
+        };
+      });
+    },
+    [updateActiveState],
+  );
 
   const addManualSession = useCallback(
     (input: ManualSessionInput) => {
       const now = Date.now();
       const safeDate = isValidDateKey(input.date) ? input.date : toLocalDateKey(now);
       const durationMinutes = Math.max(1, Math.min(240, Math.round(input.durationMinutes)));
-      setState((prev) => {
+      updateActiveState((prev) => {
         const goal = input.goalId ? prev.goals.find((g) => g.id === input.goalId) : undefined;
         const session: FocusSession = {
           id: uid('sess'),
@@ -427,13 +486,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         };
         return {
           ...prev,
-          hasSampleData: false,
           sessions: [session, ...prev.sessions],
         };
       });
       showToast(`已补录 ${durationMinutes} 分钟专注记录`);
     },
-    [showToast],
+    [showToast, updateActiveState],
   );
 
   const updateFocusSession = useCallback(
@@ -441,7 +499,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       id: string,
       patch: Partial<Pick<FocusSession, 'taskTitleSnapshot' | 'durationMinutes' | 'note' | 'date'>>,
     ) => {
-      setState((prev) => ({
+      updateActiveState((prev) => ({
         ...prev,
         sessions: prev.sessions.map((s) =>
           s.id === id
@@ -462,21 +520,21 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         ),
       }));
     },
-    [],
+    [updateActiveState],
   );
 
   const deleteFocusSession = useCallback(
     (id: string) => {
       const deleted = stateRef.current.sessions.find((s) => s.id === id);
       if (!deleted) return;
-      setState((prev) => ({
+      updateActiveState((prev) => ({
         ...prev,
         sessions: prev.sessions.filter((s) => s.id !== id),
       }));
       showToast('已删除该条专注记录', {
         label: '撤销',
         onUndo: () => {
-          setState((prev) => {
+          updateActiveState((prev) => {
             if (prev.sessions.some((s) => s.id === deleted.id)) return prev;
             return { ...prev, sessions: [deleted, ...prev.sessions] };
           });
@@ -484,45 +542,45 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         },
       });
     },
-    [dismissToast, showToast],
+    [dismissToast, showToast, updateActiveState],
   );
 
   const updateSettings = useCallback((patch: Partial<AppSettings>) => {
-    setState((prev) => ({
+    setRealState((prev) => ({
       ...prev,
       settings: sanitizeSettings({ ...prev.settings, ...patch }),
     }));
+    setDemoState((prev) =>
+      prev
+        ? {
+            ...prev,
+            settings: sanitizeSettings({ ...prev.settings, ...patch }),
+          }
+        : prev,
+    );
   }, []);
 
   const replaceAllData = useCallback(
     (nextState: PersistedAppState) => {
-      setState(nextState);
+      setDemoState(null);
+      setRealState(nextState);
       showToast('备份数据导入成功');
     },
     [showToast],
   );
 
-  const clearSampleData = useCallback(() => {
-    setState((prev) => createEmptyAppState(prev.settings));
-    showToast('已清空示例数据，可以开始规划你的专属日程');
-  }, [showToast]);
-
-  const resetToSampleData = useCallback(() => {
-    setState((prev) => ({
-      ...createSampleAppState(),
-      settings: prev.settings,
-    }));
-    showToast('已恢复默认演示数据');
-  }, [showToast]);
-
   const clearAllData = useCallback(() => {
-    setState((prev) => createEmptyAppState(prev.settings));
+    setDemoState(null);
+    setRealState((prev) => createEmptyAppState(prev.settings));
     showToast('已清空全部计划与专注记录');
   }, [showToast]);
 
   const value = useMemo<AppDataContextValue>(
     () => ({
       state,
+      isDemoMode,
+      toggleDemoMode,
+      exitDemoMode,
       toast,
       showToast,
       dismissToast,
@@ -542,12 +600,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       deleteFocusSession,
       updateSettings,
       replaceAllData,
-      clearSampleData,
-      resetToSampleData,
       clearAllData,
     }),
     [
       state,
+      isDemoMode,
+      toggleDemoMode,
+      exitDemoMode,
       toast,
       showToast,
       dismissToast,
@@ -567,8 +626,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       deleteFocusSession,
       updateSettings,
       replaceAllData,
-      clearSampleData,
-      resetToSampleData,
       clearAllData,
     ],
   );
