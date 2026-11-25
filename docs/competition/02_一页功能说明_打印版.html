@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>番茄计划（Pomodoro Planner）— 一页功能说明</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 11mm 12mm;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f4f0e8;
+        color: #1f1d1a;
+        font-family: "PingFang SC", "Microsoft YaHei UI", system-ui, -apple-system, sans-serif;
+        line-height: 1.48;
+      }
+      .page {
+        max-width: 210mm;
+        margin: 14px auto;
+        background: #ffffff;
+        border: 1px solid #e6e0d4;
+        border-radius: 14px;
+        padding: 18px 22px;
+        box-shadow: 0 8px 28px rgba(31, 29, 26, 0.06);
+      }
+      @media print {
+        body {
+          background: #ffffff;
+        }
+        .page {
+          margin: 0;
+          padding: 0;
+          border: none;
+          border-radius: 0;
+          box-shadow: none;
+          max-width: none;
+        }
+        .print-tip {
+          display: none;
+        }
+      }
+      .print-tip {
+        max-width: 210mm;
+        margin: 10px auto 0;
+        text-align: right;
+        font-size: 12px;
+        color: #6b655b;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        border-bottom: 2px solid #d95338;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+      }
+      .title-wrap h1 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.01em;
+      }
+      .title-wrap p {
+        margin: 3px 0 0;
+        font-size: 11.5px;
+        color: #6b655b;
+      }
+      .links {
+        text-align: right;
+        font-size: 11px;
+        color: #4b463f;
+      }
+      .links a {
+        color: #c0432a;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .summary {
+        background: #f8f6f1;
+        border: 1px solid #e6e0d4;
+        border-left: 4px solid #d95338;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 11.8px;
+        margin-bottom: 12px;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 11px;
+        margin-bottom: 11px;
+      }
+      .card {
+        border: 1px solid #e6e0d4;
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: #fffdf9;
+      }
+      .card h2 {
+        margin: 0 0 6px;
+        font-size: 13.5px;
+        color: #d95338;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .card ul {
+        margin: 0;
+        padding-left: 16px;
+        font-size: 11.4px;
+      }
+      .card li {
+        margin-bottom: 3.5px;
+      }
+      .card li strong {
+        color: #1f1d1a;
+      }
+      .kbd-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+        margin-top: 4px;
+      }
+      .kbd-table td {
+        padding: 3px 6px;
+        border-bottom: 1px solid #efeae0;
+      }
+      kbd {
+        display: inline-block;
+        padding: 1px 5px;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 10.5px;
+        background: #f1ede4;
+        border: 1px solid #d4cbbc;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .step {
+        background: #f8f6f1;
+        border: 1px solid #e6e0d4;
+        border-radius: 9px;
+        padding: 8px 10px;
+        font-size: 11.2px;
+      }
+      .step .num {
+        display: inline-block;
+        background: #4d8b6f;
+        color: #fff;
+        font-weight: 700;
+        font-size: 10.5px;
+        padding: 1px 7px;
+        border-radius: 999px;
+        margin-bottom: 4px;
+      }
+      .footer {
+        margin-top: 10px;
+        padding-top: 7px;
+        border-top: 1px dashed #d4cbbc;
+        display: flex;
+        justify-content: space-between;
+        font-size: 10.5px;
+        color: #6b655b;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="print-tip">提示：按 <strong>Ctrl + P</strong> 可直接打印或另存为 <strong>1 页 A4 PDF</strong></div>
+    <main class="page">
+      <header class="header">
+        <div class="title-wrap">
+          <h1>🍅 番茄计划（Pomodoro Planner）— 一页功能说明</h1>
+          <p>暖纸极简风格 · 纯前端本地持久化 · PWA 离线可用 · GitHub Pages 公开访问</p>
+        </div>
+        <div class="links">
+          <div>在线网址：<a href="https://chenyanzou.github.io/pomodoro-planner/">chenyanzou.github.io/pomodoro-planner</a></div>
+          <div>开源仓库：<a href="https://github.com/chenyanzou/pomodoro-planner">github.com/chenyanzou/pomodoro-planner</a></div>
+        </div>
+      </header>
+
+      <section class="summary">
+        <strong>这个网页是干什么的？</strong> 面向学习、备考与日常项目推进的在线番茄钟计划安排表。它将<strong>防漂移番茄计时器</strong>、<strong>按日分时段计划表</strong>、<strong>阶段目标拆解</strong>与<strong>复盘统计看板</strong>融合在一处；无需注册账号即可打开即用，每个访问者的数据独立保存在本地浏览器中并支持 JSON 一键导入导出备份。
+      </section>
+
+      <div class="grid-2">
+        <section class="card">
+          <h2>① 番茄钟专注区（左侧 / 全屏沉浸）</h2>
+          <ul>
+            <li><strong>专注 / 短休 / 长休</strong>：自由切换阶段，圆点显示长休轮次进度；基于时间戳防后台漂移与刷新恢复，标签页标题实时同步倒计时。</li>
+            <li><strong>开始 / 暂停 / 重置 ↺ / 跳过 ⏭</strong>：完整控制流程；结束自动播放 Web Audio 纯合成钟声并支持浏览器桌面提醒。</li>
+            <li><strong>环境白噪音</strong>：内置「细雨声 / 柔和粉噪 / 暖壁炉低噪」纯代码合成音源 + 独立音量条，零外链且断网可用。</li>
+            <li><strong>沉浸模式（F / Esc）</strong>：一键淡出干扰项，进入极简大圆环全屏专注界面。</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>② 今日计划安排表（右侧主工作区）</h2>
+          <ul>
+            <li><strong>日期导航 &amp; 顺延</strong>：<code>&lt;</code> / 日历选择 / <code>&gt;</code> / <code>回到今天</code>，并提供 <code>未完成顺延到今天·明天</code> 一键整理。</li>
+            <li><strong>快速录入条</strong>：输入任务回车即建，可选 <strong>上午/下午/晚上/自由时段</strong>、<strong>高/中/低优先级</strong>、关联目标与预估番茄数。</li>
+            <li><strong>任务卡片按钮</strong>：勾选完成、<code>▶</code> 绑定到番茄钟、拖拽手柄 / <code>↑↓</code> 调整顺序与跨时段移动、<code>✎</code> 完整编辑弹窗、<code>🗑</code> 删除（带 <strong>5 秒撤销提示</strong>）。</li>
+            <li><strong>筛选与空态</strong>：按全部/待办/已完成或所属目标筛选；默认首次进入为纯净空白工作区，无演示数据干扰。</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>③ 目标拆解 &amp; 复盘统计看板</h2>
+          <ul>
+            <li><strong>目标拆解页</strong>：新建/编辑/归档/删除长期目标，自动汇总关联任务番茄进度条、累计专注分钟数与截止倒计时；点 <code>+ 拆解为今日/指定日任务</code> 直接落入计划表。</li>
+            <li><strong>复盘统计页（懒加载）</strong>：4 项周期 KPI（今日/本周/本月/连续专注天数）、<code>近 7/30 天</code> SVG 柱状趋势图、目标分类占比环图与近 12 周热力图。</li>
+            <li><strong>专注历史流水</strong>：支持 <code>补录专注记录</code>、编辑时长备注或删除（可撤销），所有图表即时重算。</li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h2>④ 全局工具、数据备份与快捷键</h2>
+          <ul>
+            <li><strong>演示模式与外观（✨演示 · ☀/🌙 · ⚙）</strong>：小月亮旁一键进入/退出<strong>内存隔离演示模式</strong>（不覆盖个人数据）；暖纸浅色 / 暖炭深色切换；自定义时长、<strong>导出 JSON 备份</strong>与<strong>严格校验导入恢复</strong>。</li>
+          </ul>
+          <table class="kbd-table">
+            <tr>
+              <td><kbd>Space</kbd> 启停计时</td>
+              <td><kbd>R</kbd> 重置本轮</td>
+              <td><kbd>N</kbd> 新建任务</td>
+            </tr>
+            <tr>
+              <td><kbd>F</kbd> 沉浸模式</td>
+              <td><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 切换三大视图</td>
+              <td><kbd>?</kbd> 快捷键速查</td>
+            </tr>
+          </table>
+        </section>
+      </div>
+
+      <section class="card" style="padding: 9px 12px;">
+        <h2 style="margin-bottom: 4px;">⑤ 30 秒上手使用步骤</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="num">STEP 1 · 列计划</div>
+            <div>在右侧输入今日任务、选好时段与预估番茄数（或在「目标拆解」创建大目标并一键拆出任务），用拖拽或 <code>↑↓</code> 排定优先级顺序。</div>
+          </div>
+          <div class="step">
+            <div class="num">STEP 2 · 沉浸专注</div>
+            <div>点击任务右侧 <code>▶</code> 绑定到番茄钟，按 <kbd>Space</kbd> 启动；可打开细雨白噪音或按 <kbd>F</kbd> 进入全屏沉浸，切去查资料也不影响后台精准计时。</div>
+          </div>
+          <div class="step">
+            <div class="num">STEP 3 · 复盘备份</div>
+            <div>到点自动提示并计入任务与历史流水；每天结束在「复盘统计」看趋势与热力图，一键顺延未完成项，并可在 <code>⚙</code> 导出 JSON 永久备份。</div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>技术栈：React 19 + TypeScript + Vite 6 + Tailwind CSS v4 + 自定义轻量 SVG 图表 + Web Audio API + PWA</span>
+        <span>版本：v1.0（含 v0.1 → v0.3 → v1.0 完整 Git 演进）</span>
+      </footer>
+    </main>
+  </body>
+</html>
