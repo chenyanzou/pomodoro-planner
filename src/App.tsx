@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { AppDataProvider } from './context/AppDataContext';
 import { TimerProvider } from './context/TimerContext';
 import { Header, type ActiveTab } from './components/layout/Header';
@@ -7,6 +7,8 @@ import { TimerCard } from './components/timer/TimerCard';
 import { SchedulePanel } from './components/schedule/SchedulePanel';
 import { GoalsView } from './components/goals/GoalsView';
 import { toLocalDateKey } from './utils/date';
+
+const AnalyticsView = lazy(() => import('./components/analytics/AnalyticsView'));
 
 function AppShell() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('focus');
@@ -35,9 +37,15 @@ function AppShell() {
       {activeTab === 'goals' && <GoalsView onJumpToSchedule={handleJumpToSchedule} />}
 
       {activeTab === 'analytics' && (
-        <main className="mx-auto max-w-6xl px-4 py-12 text-center text-sm text-[var(--text-muted)] sm:px-6">
-          复盘统计看板即将载入...
-        </main>
+        <Suspense
+          fallback={
+            <div className="mx-auto max-w-6xl px-4 py-16 text-center text-sm text-[var(--text-muted)] sm:px-6">
+              正在加载复盘统计图表...
+            </div>
+          }
+        >
+          <AnalyticsView />
+        </Suspense>
       )}
 
       <UndoToast />
